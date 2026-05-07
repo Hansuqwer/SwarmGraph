@@ -1,0 +1,1 @@
+"""Swarm graphs package."""

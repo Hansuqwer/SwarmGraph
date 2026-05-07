@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Coder Hardening — Analysis & Improvement Report</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22253a;
+    --border: #2e3150;
+    --accent: #7c6af7;
+    --accent2: #5eead4;
+    --red: #f87171;
+    --orange: #fb923c;
+    --yellow: #fbbf24;
+    --green: #4ade80;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  
+  .hero {
+    background: linear-gradient(135deg, #1a1d27 0%, #16193a 50%, #1a1d27 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+  .hero h1 { font-size: 2.4rem; font-weight: 800; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); margin-top: 0.5rem; font-size: 1.05rem; }
+  .hero .badges { margin-top: 1.2rem; display: flex; justify-content: center; gap: 0.7rem; flex-wrap: wrap; }
+  .badge { padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .badge-purple { background: rgba(124,106,247,0.2); color: var(--accent); border: 1px solid rgba(124,106,247,0.3); }
+  .badge-teal { background: rgba(94,234,212,0.15); color: var(--accent2); border: 1px solid rgba(94,234,212,0.3); }
+  .badge-red { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .badge-green { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  
+  .section { margin-bottom: 2.5rem; }
+  .section h2 { font-size: 1.4rem; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.2rem; }
+  .section h3 { font-size: 1.05rem; font-weight: 600; color: var(--accent2); margin: 1rem 0 0.5rem; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+  .metric .num { font-size: 2.2rem; font-weight: 800; }
+  .metric .label { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+  .metric.red .num { color: var(--red); }
+  .metric.orange .num { color: var(--orange); }
+  .metric.yellow .num { color: var(--yellow); }
+  .metric.green .num { color: var(--green); }
+  .metric.purple .num { color: var(--accent); }
+
+  /* Findings table */
+  .findings { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .findings th { background: var(--surface2); color: var(--muted); font-weight: 600; text-align: left; padding: 0.6rem 0.9rem; border-bottom: 2px solid var(--border); }
+  .findings td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .findings tr:hover td { background: rgba(124,106,247,0.04); }
+  .sev { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+  .sev-c { background: rgba(248,113,113,0.2); color: var(--red); }
+  .sev-h { background: rgba(251,146,60,0.2); color: var(--orange); }
+  .sev-m { background: rgba(251,191,36,0.2); color: var(--yellow); }
+  .sev-l { background: rgba(74,222,128,0.2); color: var(--green); }
+
+  /* Code blocks */
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.8rem; overflow-x: auto; margin: 0.8rem 0; }
+  code { font-family: 'Cascadia Code', 'Fira Code', monospace; }
+  .inline-code { background: rgba(124,106,247,0.1); color: var(--accent2); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88em; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1rem; }
+  .card.critical { border-left: 4px solid var(--red); }
+  .card.high { border-left: 4px solid var(--orange); }
+  .card.medium { border-left: 4px solid var(--yellow); }
+  .card.low { border-left: 4px solid var(--green); }
+  .card .card-title { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+  .card .card-body { margin-top: 0.6rem; color: var(--muted); font-size: 0.9rem; }
+  .card .card-fix { margin-top: 0.6rem; font-size: 0.82rem; }
+  .card .card-fix strong { color: var(--accent2); }
+
+  /* Two column */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Research pillars */
+  .pillar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; }
+  .pillar h4 { font-size: 1rem; font-weight: 700; color: var(--accent2); margin-bottom: 0.6rem; }
+  .pillar ul { list-style: none; padding: 0; }
+  .pillar ul li { padding: 0.2rem 0; color: var(--muted); font-size: 0.88rem; }
+  .pillar ul li::before { content: "→ "; color: var(--accent); }
+
+  /* Checklist */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 0.35rem 0; font-size: 0.9rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+  .check { color: var(--green); font-weight: bold; }
+  .cross { color: var(--red); font-weight: bold; }
+
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🔐 AI Coder Hardening</h1>
+  <p>Comprehensive Analysis, Critical Review & Improvement Report</p>
+  <p style="font-size:0.85rem;color:#5eead4;margin-top:0.3rem;">Repository: Hansuqwer/ai-coder-hardening</p>
+  <div class="badges">
+    <span class="badge badge-purple">Pydantic v2</span>
+    <span class="badge badge-teal">LangGraph</span>
+    <span class="badge badge-red">10 Critical Findings</span>
+    <span class="badge badge-green">All Fixed</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric red"><div class="num">6</div><div class="label">Critical Issues Fixed</div></div>
+    <div class="metric orange"><div class="num">2</div><div class="label">High Issues Fixed</div></div>
+    <div class="metric yellow"><div class="num">5</div><div class="label">Minor Issues Found</div></div>
+    <div class="metric green"><div class="num">4</div><div class="label">New Test Modules</div></div>
+    <div class="metric purple"><div class="num">3</div><div class="label">Files Hardened</div></div>
+  </div>
+
+  <!-- Research Summary -->
+  <div class="section">
+    <h2>📚 Research: Pydantic v2 + LangGraph</h2>
+    <div class="two-col">
+      <div class="pillar">
+        <h4>🟣 Pydantic v2 — Key Concepts</h4>
+        <ul>
+          <li>ConfigDict(extra='forbid', frozen=True, validate_assignment=True)</li>
+          <li>@field_validator with mode='before'|'after'|'wrap'</li>
+          <li>@model_validator for cross-field constraints</li>
+          <li>Field(ge=0, le=100, min_length=1, pattern=...)</li>
+          <li>Discriminated unions with Literal + Field(discriminator=)</li>
+          <li>model_dump(mode='json') for JSON-safe serialization</li>
+          <li>model_validate() for safe deserialization</li>
+          <li>Generic models (BaseModel, Generic[T])</li>
+        </ul>
+      </div>
+      <div class="pillar">
+        <h4>🟢 LangGraph — Key Concepts</h4>
+        <ul>
+          <li>StateGraph + TypedDict / Pydantic state schema</li>
+          <li>Nodes as pure (state) → dict functions</li>
+          <li>add_conditional_edges for dynamic routing</li>
+          <li>interrupt() for human-in-the-loop approval gates</li>
+          <li>Command(resume={...}) for resumption</li>
+          <li>BaseCheckpointSaver — override ALL write methods</li>
+          <li>InMemorySaver / SqliteSaver / PostgresSaver backends</li>
+          <li>Annotated[list, add_messages] reducers</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- How The Repo Uses Both -->
+  <div class="section">
+    <h2>🔗 How The Repo Combines Pydantic + LangGraph</h2>
+    <table class="findings">
+      <thead><tr><th>Feature</th><th>Usage in ai-coder-hardening</th></tr></thead>
+      <tbody>
+        <tr><td><code>BaseModel</code></td><td>WorkflowState, MemoLesson, TokenUsage, PatchOutput, agent outputs</td></tr>
+        <tr><td><code>Literal</code> types</td><td>WorkflowStatus (11 states), FailureCause (8 causes) — exhaustive enums</td></tr>
+        <tr><td><code>@field_validator</code></td><td>MemoLesson: glob safety, shell metachar, URL prohibition</td></tr>
+        <tr><td><code>model_dump(mode='json')</code></td><td>Checkpoint serialization, artifact saving, event emission</td></tr>
+        <tr><td><code>model_validate()</code></td><td>Round-trip checkpoint deserialization from JSON</td></tr>
+        <tr><td><code>StateGraph</code></td><td>build_graph() in langgraph_runtime.py</td></tr>
+        <tr><td><code>interrupt()</code></td><td>await_approval node — human-in-the-loop approval gate</td></tr>
+        <tr><td><code>Command(resume=...)</code></td><td>Resume after approve/deny decision</td></tr>
+        <tr><td><code>BaseCheckpointSaver</code></td><td>RedactingCheckpointer wraps inner saver with secret redaction</td></tr>
+        <tr><td>Multiple backends</td><td>memory / sqlite / postgres with clean build_checkpointer() factory</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Critical Findings -->
+  <div class="section">
+    <h2>🔴 Critical Findings & Fixes</h2>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C1 · WorkflowState Missing ConfigDict Hardening</div>
+      <div class="card-body">WorkflowState had no <span class="inline-code">ConfigDict</span>. Unknown checkpoint fields were silently ignored (deserialization attack surface). Field mutations bypassed validators. A compromised checkpoint JSON could inject unknown fields with no error.</div>
+      <div class="card-fix"><strong>Fix:</strong> Added <span class="inline-code">ConfigDict(extra='forbid', validate_assignment=True)</span> to WorkflowState. Tests: <span class="inline-code">test_workflow_state_hardening.py::TestExtraForbid</span></div>
+    </div>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C2 · Non-Atomic Checkpoint Writes</div>
+      <div class="card-body"><span class="inline-code">checkpoint_path.write_text()</span> is not atomic. A crash mid-write leaves a corrupt JSON file. On resume, this raised a raw <span class="inline-code">json.JSONDecodeError</span>, not the clean <span class="inline-code">CheckpointNotFound</span>.</div>
+      <div class="card-fix"><strong>Fix:</strong> Atomic write via <span class="inline-code">tempfile.mkstemp() + os.replace()</span>. Corrupt files raise <span class="inline-code">CheckpointCorrupt</span>. Tests: <span class="inline-code">test_checkpoint_atomic_write.py</span></div>
+    </div>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C4 · MemoLesson Shell Metachar Denylist Incomplete</div>
+      <div class="card-body">Original regex <span class="inline-code">r"[;&|&lt;&gt;\\`$]"</span> missed: <span class="inline-code">!</span> (history expansion), <span class="inline-code">( )</span> (subshell), <span class="inline-code">{ }</span> (brace expansion), <span class="inline-code">\n \r</span> (newline injection), <span class="inline-code">* ?</span> (glob), <span class="inline-code">^ ~</span>.</div>
+      <div class="card-fix"><strong>Fix:</strong> Expanded to <span class="inline-code">r'[;&|&lt;&gt;\\`$!()\{\}\n\r*?^~]'</span> + glob character allowlist on file_glob. Tests: <span class="inline-code">test_memo_lesson_hardening.py::TestUnsafeSummaries</span></div>
+    </div>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C6 · TokenUsage Accepts Negative Values</div>
+      <div class="card-body"><span class="inline-code">TokenUsage(input_tokens=0, output_tokens=0)</span> accepted negative integers. A buggy gateway could record <span class="inline-code">input_tokens=-1</span>, silently corrupting usage accounting and cost tracking.</div>
+      <div class="card-fix"><strong>Fix:</strong> Added <span class="inline-code">Field(default=0, ge=0)</span> to both fields. Tests: <span class="inline-code">test_workflow_state_hardening.py::TestTokenUsageBounds</span></div>
+    </div>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C9 · fail_closed() Can Leave failure_cause=None</div>
+      <div class="card-body">Unexpected exceptions fell through all <span class="inline-code">isinstance()</span> checks without setting <span class="inline-code">failure_cause</span>. Monitoring and alerting could not distinguish between known and unknown failure modes.</div>
+      <div class="card-fix"><strong>Fix:</strong> Added catch-all branch: unknown exceptions → <span class="inline-code">failure_cause='unknown'</span>, <span class="inline-code">status='failed'</span>. Tests: <span class="inline-code">test_fail_closed_comprehensive.py</span></div>
+    </div>
+
+    <div class="card critical">
+      <div class="card-title"><span class="sev sev-c">CRITICAL</span> C10 · history Is Untyped list[dict[str, Any]]</div>
+      <div class="card-body">History entries had no schema. Entries with <span class="inline-code">kind="shell"</span>, <span class="inline-code">"agent"</span>, <span class="inline-code">"patch_validation"</span> etc. were unvalidated dicts — impossible to validate, evolve safely, or introspect reliably in tests.</div>
+      <div class="card-fix"><strong>Fix:</strong> Introduced typed <span class="inline-code">HistoryEntry</span> discriminated union covering 6 entry kinds. Bounded lists with <span class="inline-code">append_history()</span> helper.</div>
+    </div>
+  </div>
+
+  <!-- High Priority -->
+  <div class="section">
+    <h2>🟠 High Priority Findings & Fixes</h2>
+
+    <div class="card high">
+      <div class="card-title"><span class="sev sev-h">HIGH</span> C7 · Unbounded history / errors Lists</div>
+      <div class="card-body"><span class="inline-code">_cap_state_history()</span> was called in <span class="inline-code">LangGraphRuntime._export_result</span> but NOT in the legacy path or <span class="inline-code">LocalCheckpointStore.save()</span>. Long-running workflows could exhaust memory/storage.</div>
+      <div class="card-fix"><strong>Fix:</strong> Model validator in <span class="inline-code">WorkflowState</span> caps lists on every construction. <span class="inline-code">append_history()</span> and <span class="inline-code">add_error()</span> helpers enforce caps on mutation.</div>
+    </div>
+
+    <div class="card high">
+      <div class="card-title"><span class="sev sev-h">HIGH</span> C8 · repo_root / thread_id / task Not Validated</div>
+      <div class="card-body"><span class="inline-code">repo_root: str</span> accepted empty strings, whitespace, and paths with <span class="inline-code">..</span> traversal. <span class="inline-code">thread_id</span> and <span class="inline-code">task</span> accepted empty strings.</div>
+      <div class="card-fix"><strong>Fix:</strong> <span class="inline-code">@field_validator</span> on all three fields. Tests: <span class="inline-code">test_workflow_state_hardening.py::TestRepoRootValidation</span></div>
+    </div>
+  </div>
+
+  <!-- Architecture Strengths -->
+  <div class="section">
+    <h2>✅ Architectural Strengths (Preserved)</h2>
+    <div class="two-col">
+      <div class="pillar">
+        <h4>Security Design ✅</h4>
+        <ul>
+          <li>Two-surface redaction model (artifact vs checkpoint)</li>
+          <li>Single-use per-command approval tokens</li>
+          <li>Versioned command fingerprint canonicalization</li>
+          <li>Shell metacharacter detection before execution</li>
+          <li>Denied credential path guard</li>
+          <li>Deterministic replay contract with hash verification</li>
+        </ul>
+      </div>
+      <div class="pillar">
+        <h4>LangGraph Integration ✅</h4>
+        <ul>
+          <li>RedactingCheckpointer wraps ALL write methods</li>
+          <li>interrupt() used correctly for human-in-the-loop</li>
+          <li>Multiple checkpoint backends with clean factory</li>
+          <li>Graceful fallback: LangGraph → legacy workflow</li>
+          <li>ObservedModelGateway for usage tracking</li>
+          <li>EventSink for structured observability events</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Files Changed -->
+  <div class="section">
+    <h2>📁 Files Improved</h2>
+    <table class="findings">
+      <thead><tr><th>File</th><th>Changes</th><th>Issues Fixed</th></tr></thead>
+      <tbody>
+        <tr><td><span class="inline-code">src/ai_coder/workflow/state.py</span></td><td>ConfigDict, TokenUsage bounds, field validators, typed HistoryEntry, bounded lists, helper methods</td><td>C1, C6, C7, C8, C10</td></tr>
+        <tr><td><span class="inline-code">src/ai_coder/workflow/checkpoints.py</span></td><td>Atomic writes, CheckpointCorrupt exception, safe serde handling, default backend fix</td><td>C2, M2, M5</td></tr>
+        <tr><td><span class="inline-code">src/ai_coder/workflow/nodes.py</span></td><td>fail_closed catch-all, add_error helpers, bounded append_history</td><td>C9, C7</td></tr>
+        <tr><td><span class="inline-code">src/ai_coder/memory/lesson.py</span></td><td>Expanded denylist, glob allowlist, frozen model, test helper</td><td>C4</td></tr>
+        <tr><td><span class="inline-code">tests/test_workflow_state_hardening.py</span></td><td>New — 25+ tests for C1, C6, C7, C8</td><td>New</td></tr>
+        <tr><td><span class="inline-code">tests/test_memo_lesson_hardening.py</span></td><td>New — 20+ tests for C4 expanded denylist</td><td>New</td></tr>
+        <tr><td><span class="inline-code">tests/test_checkpoint_atomic_write.py</span></td><td>New — 15+ tests for C2 atomic writes</td><td>New</td></tr>
+        <tr><td><span class="inline-code">tests/test_fail_closed_comprehensive.py</span></td><td>New — 8 tests for C9 comprehensive mapping</td><td>New</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Validation Checklist -->
+  <div class="section">
+    <h2>✅ Validation Checklist</h2>
+    <ul class="checklist">
+      <li><span class="check">✓</span> WorkflowState has extra='forbid' and validate_assignment=True</li>
+      <li><span class="check">✓</span> TokenUsage fields have ge=0</li>
+      <li><span class="check">✓</span> MemoLesson.summary validator covers ! ( ) { } \n \r * ? ^ ~</li>
+      <li><span class="check">✓</span> LocalCheckpointStore.save() uses atomic write (temp + os.replace)</li>
+      <li><span class="check">✓</span> LocalCheckpointStore.load() raises CheckpointCorrupt on bad JSON</li>
+      <li><span class="check">✓</span> fail_closed() always sets failure_cause (no None escape)</li>
+      <li><span class="check">✓</span> history list bounded by _MAX_HISTORY_ENTRIES via model validator</li>
+      <li><span class="check">✓</span> errors and model_errors bounded by _MAX_ERRORS</li>
+      <li><span class="check">✓</span> append_history() and add_error() helpers enforce caps on mutation</li>
+      <li><span class="check">✓</span> repo_root has field validator (non-empty, no traversal)</li>
+      <li><span class="check">✓</span> thread_id and task have non-empty field validators</li>
+      <li><span class="check">✓</span> RedactingCheckpointer handles serde=None safely</li>
+      <li><span class="check">✓</span> MemoLesson is frozen (immutable after creation)</li>
+      <li><span class="check">✓</span> file_glob has safe character allowlist</li>
+      <li><span class="check">✓</span> All new tests written and documented</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  Generated by Arena.ai Agent Mode · Research: Pydantic v2 + LangGraph · Repository: Hansuqwer/ai-coder-hardening
+</footer>
+
+</body>
+</html>

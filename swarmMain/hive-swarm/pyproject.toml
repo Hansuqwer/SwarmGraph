@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hive-swarm"
+version = "1.0.0"
+description = "Ruflo-inspired swarm intelligence for Pydantic v2 + LangGraph"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.7.0"]
+
+[project.optional-dependencies]
+langgraph = ["langgraph>=0.3.0", "langgraph-checkpoint>=2.0.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-cov>=5.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+[tool.hatch.build.targets.wheel]
+packages = ["swarm"]
