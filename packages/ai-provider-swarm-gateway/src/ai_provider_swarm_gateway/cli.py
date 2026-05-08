@@ -49,6 +49,7 @@ app = typer.Typer(
 quota_app = typer.Typer(name="quota", help="Local quota tracking.", no_args_is_help=True)
 providers_app = typer.Typer(name="providers", help="Provider registry inspection.", no_args_is_help=True)
 tenants_app = typer.Typer(name="tenants", help="Multi-tenant quota management.", no_args_is_help=True)
+auth_app = typer.Typer(name="auth", help="Opt-in auth helpers.", no_args_is_help=True)
 audit_app = typer.Typer(
     name="audit",
     help="Verify HMAC-SHA256-signed audit logs.",
@@ -57,6 +58,7 @@ audit_app = typer.Typer(
 app.add_typer(quota_app)
 app.add_typer(providers_app)
 app.add_typer(tenants_app)
+app.add_typer(auth_app)
 app.add_typer(audit_app)
 
 _console = Console() if _HAS_RICH else None
@@ -344,6 +346,64 @@ def tenants_storage_path(
 ) -> None:
     """Print the canonical storage path for a tenant id."""
     print(QuotaTracker.tenant_storage_path(tenant_id))
+
+
+# ── auth subcommands ────────────────────────────────────────────────────
+
+@auth_app.command("import-browser")
+def auth_import_browser(
+    provider: str = typer.Argument(..., help="Provider: chatgpt, qwen, or kimi."),
+    browser: str = typer.Option("chrome", "--browser", help="Browser to inspect."),
+    account_id: str = typer.Option("browser_auto", "--account-id"),
+    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
+    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Find token but do not store it."),
+) -> None:
+    """Import a local browser session token into the encrypted vault.
+
+    Explicit opt-in only. The token value is never printed.
+    """
+    try:
+        from .auth_browser import BrowserAuthError, extract_browser_session_token
+    except ImportError as exc:
+        _err(f"browser auth unavailable: {exc}")
+        raise typer.Exit(1) from exc
+
+    try:
+        token = extract_browser_session_token(
+            provider,
+            browser=browser,
+            account_id=account_id,
+        )
+    except BrowserAuthError as exc:
+        _err(str(exc))
+        raise typer.Exit(2) from exc
+    if token is None:
+        _err(f"no {provider} session token found in {browser}")
+        raise typer.Exit(1)
+
+    if dry_run:
+        _print_plain(
+            f"found {token.provider} token in {token.source_browser} "
+            f"cookie={token.cookie_name}; not stored"
+        )
+        return
+
+    try:
+        from .quota.pool import DEFAULT_KEY_PATH, DEFAULT_VAULT_PATH, SecretStore
+
+        store = SecretStore(
+            vault_path or DEFAULT_VAULT_PATH,
+            key_path=key_path or DEFAULT_KEY_PATH,
+        )
+        store.add_key(token.provider, token.account_id, token.token)
+    except Exception as exc:
+        _err(f"could not store browser token in encrypted vault: {exc}")
+        raise typer.Exit(3) from exc
+    _print_plain(
+        f"stored {token.provider} token account={token.account_id} "
+        f"source={token.source_browser} cookie={token.cookie_name}"
+    )
 
 
 # ── providers subcommands (unchanged from v6) ────────────────────────────
