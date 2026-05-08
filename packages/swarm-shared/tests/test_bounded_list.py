@@ -1,6 +1,8 @@
 """Tests for swarm_shared.bounded_list."""
 import pytest
-from swarm_shared.bounded_list import CappedListConfig, cap_list
+from pydantic import BaseModel, Field, field_validator
+
+from swarm_shared.bounded_list import CappedListConfig, bounded_list_validator, cap_list
 
 
 def test_cap_list_no_op_when_under_limit():
@@ -45,3 +47,14 @@ def test_invalid_max_len_rejected():
 def test_invalid_strategy_rejected():
     with pytest.raises(ValueError):
         CappedListConfig(max_len=10, keep_strategy="middle")
+
+
+def test_bounded_list_validator_caps_pydantic_field():
+    cfg = CappedListConfig(max_len=3, keep_strategy="tail")
+
+    class Example(BaseModel):
+        items: list[int] = Field(default_factory=list)
+
+        _cap_items = field_validator("items")(bounded_list_validator("items", cfg))
+
+    assert Example(items=[1, 2, 3, 4, 5]).items == [3, 4, 5]

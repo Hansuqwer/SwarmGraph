@@ -117,6 +117,28 @@ def test_sign_and_record_missing_secret_writes_error(monkeypatch):
     assert state.audit_records == []
 
 
+def test_sign_and_record_missing_secret_can_fail_closed(monkeypatch):
+    from swarm._audit_helper import AuditMisconfigured, sign_and_record
+    from swarm.models.config import SwarmConfig
+    from swarm.models.state import SwarmState
+
+    monkeypatch.delenv("HIVE_SWARM_AUDIT_SECRET", raising=False)
+    state = SwarmState(
+        swarm_id="s1",
+        objective="x",
+        config=SwarmConfig(
+            audit_signing_enabled=True,
+            audit_fail_closed=True,
+            audit_secret_env="HIVE_SWARM_AUDIT_SECRET",
+        ),
+    )
+
+    with pytest.raises(AuditMisconfigured):
+        sign_and_record(state, "consensus_result", {"x": 1})
+    assert state.audit_records == []
+    assert state.errors
+
+
 # ── Persistent JSONL flush ──────────────────────────────────────────────
 
 def test_audit_jsonl_path_appends_records(audit_env, tmp_path: Path):

@@ -38,8 +38,8 @@ def cap_list(items: list[T], cfg: CappedListConfig) -> list[T]:
 def bounded_list_validator(
     field_name: str,
     cfg: CappedListConfig,
-) -> Callable[[Any, list[T]], list[T]]:
-    """Build a Pydantic v2 field_validator that caps a list.
+) -> Callable[[list[T]], list[T]]:
+    """Build a Pydantic v2 field validator function that caps a list.
 
     Usage:
         from pydantic import BaseModel, field_validator
@@ -51,10 +51,16 @@ def bounded_list_validator(
             history: list[dict] = Field(default_factory=list)
 
             _validate_history = field_validator("history")(
-                bounded_list_validator.as_pydantic("history", _HISTORY_CFG)
+                bounded_list_validator("history", _HISTORY_CFG)
             )
     """
-    raise NotImplementedError("Use cap_list inside a model_validator instead")
+
+    def _validator(value: list[T]) -> list[T]:
+        if not isinstance(value, list):
+            raise TypeError(f"{field_name} must be a list")
+        return cap_list(value, cfg)
+
+    return _validator
 
 
 # Direct convenience: most callers just want cap_list in a model_validator

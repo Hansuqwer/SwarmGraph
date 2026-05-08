@@ -121,6 +121,13 @@ class SwarmConfig(FrozenModel):
         default=_DEFAULT_AUDIT_KINDS,
         description="Which event kinds to sign + record. Empty = sign nothing.",
     )
+    audit_fail_closed: bool = Field(
+        default=False,
+        description=(
+            "When audit_signing_enabled=True, raise on audit signing misconfiguration "
+            "or signing failure instead of recording an error and continuing."
+        ),
+    )
 
     # ── v8: Streaming HITL ────────────────────────────────────────────────
     streaming_guard_patterns: list[str] = Field(

@@ -70,6 +70,8 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
     except AuditMisconfigured as e:
         # Loud failure: write to errors but don't crash the swarm
         state.add_error(f"audit_signing: {e}")
+        if getattr(state.config, "audit_fail_closed", False):
+            raise
         return None
 
     prev_hash = state.audit_chain_head or GENESIS_PREV_HASH
@@ -87,6 +89,8 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
         )
     except Exception as e:
         state.add_error(f"audit_signing failed for kind={kind}: {e}")
+        if getattr(state.config, "audit_fail_closed", False):
+            raise RuntimeError(f"audit_signing failed for kind={kind}: {e}") from e
         return None
 
     record_dict = record.model_dump(mode="json")
