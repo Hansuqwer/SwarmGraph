@@ -21,6 +21,10 @@ ENV/
 # uv
 uv.lock.bak
 
+# Backup artifacts
+*.bak
+*.bak.*
+
 # pytest
 .pytest_cache/
 .coverage
