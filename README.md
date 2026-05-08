@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Hansuqwer/SwarmGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/Hansuqwer/SwarmGraph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org)
 
 A Pydantic-strict, voting-based, audit-first LangGraph runtime for regulated or high-assurance multi-agent workflows where consensus, replay safety, signed audit trails, tenant isolation, and deterministic orchestration matter more than free-form conversational handoffs.
 
@@ -31,6 +31,13 @@ uv run pytest packages/
 # 3. Try the CLI
 uv run ai-provider-gateway --help
 uv run ai-provider-gateway swarm --prompt "implement add(a,b)" --anti-drift off --max-agents 3 --json
+
+# Optional local dashboard
+uv run ai-provider-gateway dashboard
+
+# Verify signed local/S3 audit logs
+uv run ai-provider-gateway audit verify audit.jsonl --expected-count 10
+uv run ai-provider-gateway audit verify s3://my-bucket/audit --swarm-id swarm-123
 ```
 
 For gateway-backed execution with a live model:
@@ -86,6 +93,20 @@ uv run ai-provider-gateway swarm \
 - **Streaming HITL guards** — per-chunk regex denylist + length cap
 - **Multi-provider gateway** — 9router, OpenAI-compatible; per-role overrides
 - **Cost tracking** — per-call USD estimate, rolled up across workers
+- **S3 audit backend** — partitioned JSONL audit logs, conditional append, restore CLI
+- **Optional monitoring TUI** — Textual dashboard with consensus trend + quota/resource panels
+- **Semantic response cache** — SQLite exact-match + cosine-similarity lookup
+- **Resource-aware scaling** — optional runtime agent cap from available local RAM
+- **Encrypted account vault** — Fernet-encrypted local key/session store, no plaintext fallback
+- **Grok/xAI adapter** — OpenAI-compatible mocked-test provider integration
+- **Release provenance** — GitHub artifact attestation for release distributions
+
+Security note: browser auth import is explicit opt-in only and never prints tokens:
+
+```bash
+uv run ai-provider-gateway auth import-browser chatgpt --dry-run
+uv run ai-provider-gateway auth import-browser chatgpt --vault-path ~/.ai_provider_gateway/secrets.json.enc
+```
 
 ---
 
