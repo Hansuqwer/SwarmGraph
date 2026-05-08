@@ -17,6 +17,7 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Iterable, Iterator, Mapping, Optional
@@ -49,6 +50,7 @@ DEFAULT_BASE_URL = "http://localhost:20128/v1"
 DEFAULT_MODEL = "kc/kilo-auto/free"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_STREAM_TIMEOUT_SECONDS = 300.0
+_ALLOWED_URL_SCHEMES = {"http", "https"}
 
 _API_KEY_ENV_ALIASES = (
     "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
@@ -146,6 +148,13 @@ def _normalise_messages(messages_or_prompt, *, fallback_prompt=None):
     return out
 
 
+def _validate_http_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES or not parsed.netloc:
+        raise ValueError(f"URL must be absolute HTTP(S): {url!r}")
+    return url
+
+
 # ── HTTP transport ───────────────────────────────────────────────────────
 
 class _HttpClient:
@@ -158,9 +167,9 @@ class _HttpClient:
         }
         if extra_headers:
             headers.update(dict(extra_headers))
-        req = urllib.request.Request(url=url, data=body, headers=headers, method="POST")
+        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8", errors="replace")
                 resp_headers = {k.lower(): v for k, v in resp.headers.items()}
                 return resp.status, raw, resp_headers
@@ -177,9 +186,9 @@ class _HttpClient:
             "Authorization": f"Bearer {api_key}",
             "Accept": "text/event-stream",
         }
-        req = urllib.request.Request(url=url, data=body, headers=headers, method="POST")
+        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 if resp.status >= 400:
                     err = resp.read().decode("utf-8", errors="replace")
                     raise RuntimeError(f"9router stream HTTP {resp.status}: {err[:500]}")

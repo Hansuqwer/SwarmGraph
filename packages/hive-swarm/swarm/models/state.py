@@ -296,7 +296,8 @@ class SwarmState(HardenedModel):
         self.stream_hitl_pending = False
         self.stream_hitl_partial_text = ""
         self.stream_hitl_trigger_reason = ""
-        self.stream_hitl_decision_token = ""
+        # Reset an ephemeral HITL token field; this is not a hardcoded secret.
+        self.stream_hitl_decision_token = ""  # nosec B105
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

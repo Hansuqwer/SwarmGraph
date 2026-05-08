@@ -147,7 +147,8 @@ class QuotaTracker:
             self._data = {}
 
     def _save_locked(self) -> None:
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         self._lock_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._lock_path, "a+") as lock_fh:
             with _file_lock(lock_fh):
@@ -177,7 +178,8 @@ class QuotaTracker:
 
     def _authoritative_save_locked(self) -> None:
         """Write in-memory state verbatim, with no merge against disk."""
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         self._lock_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._lock_path, "a+") as lock_fh:
             with _file_lock(lock_fh):
@@ -187,7 +189,8 @@ class QuotaTracker:
 
     def get_usage(self, provider_id: str, window: str = "daily") -> QuotaUsage:
         self._ensure_loaded()
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         key = f"{provider_id}:{window}"
         raw = self._data.get(key, {})
         self._maybe_reset(provider_id, window, raw)
@@ -213,7 +216,8 @@ class QuotaTracker:
         if requests < 0 or tokens < 0:
             raise ValueError("Cannot decrement quota usage")
         self._ensure_loaded()
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         key = f"{provider_id}:{window}"
         if key not in self._data:
             self._data[key] = {"used_requests": 0, "used_tokens": 0, "reset_at": None}
@@ -229,7 +233,8 @@ class QuotaTracker:
     ) -> QuotaUsage:
         """Reset a counter to zero. (Your local v3-era fix; preserved.)"""
         self._ensure_loaded()
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         key = f"{provider_id}:{window}"
         self._data[key] = {"used_requests": 0, "used_tokens": 0, "reset_at": None}
         self._authoritative_save_locked()
@@ -255,7 +260,8 @@ class QuotaTracker:
         window: str = "daily",
     ) -> None:
         self._ensure_loaded()
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         key = f"{provider_id}:{window}"
         if key not in self._data:
             self._data[key] = {"used_requests": 0, "used_tokens": 0}
@@ -264,7 +270,8 @@ class QuotaTracker:
 
     def all_usage(self) -> dict[str, QuotaUsage]:
         self._ensure_loaded()
-        assert self._data is not None
+        if self._data is None:
+            raise RuntimeError("quota tracker state is not loaded")
         result: dict[str, QuotaUsage] = {}
         for key in self._data:
             parts = key.split(":", 1)
@@ -286,7 +293,8 @@ class QuotaTracker:
             now = datetime.now(tz=timezone.utc)
             if now >= reset_at:
                 key = f"{provider_id}:{window}"
-                assert self._data is not None
+                if self._data is None:
+                    raise RuntimeError("quota tracker state is not loaded")
                 self._data[key] = {
                     "used_requests": 0,
                     "used_tokens": 0,

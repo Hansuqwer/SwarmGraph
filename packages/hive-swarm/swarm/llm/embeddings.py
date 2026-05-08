@@ -24,6 +24,7 @@ import json
 import math
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Iterable, Optional, Protocol
 
@@ -132,6 +133,14 @@ _OPENAI_KEY_ENV_ALIASES = (
 _DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 _DEFAULT_OPENAI_MODEL = "text-embedding-3-small"
 _DEFAULT_OPENAI_TIMEOUT = 30.0
+_ALLOWED_URL_SCHEMES = {"http", "https"}
+
+
+def _validate_http_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES or not parsed.netloc:
+        raise ValueError(f"URL must be absolute HTTP(S): {url!r}")
+    return url
 
 
 class _EmbeddingsHttpClient:
@@ -150,9 +159,9 @@ class _EmbeddingsHttpClient:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-        req = urllib.request.Request(url=url, data=body, headers=headers, method="POST")
+        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8", errors="replace")
                 return resp.status, raw
         except urllib.error.HTTPError as e:
