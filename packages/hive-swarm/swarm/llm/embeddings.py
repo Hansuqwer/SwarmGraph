@@ -274,6 +274,51 @@ class OpenAIEmbeddingAdapter:
         return f"OpenAIEmbeddingAdapter(model={self.model!r})"
 
 
+class SentenceTransformerEmbedder:
+    """Local sentence-transformers embedder.
+
+    The optional dependency and model are loaded lazily. Missing packages or
+    model load failures return ``[]`` so callers can fall back safely.
+    """
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", *, model: Any | None = None) -> None:
+        self.model_name = model_name
+        self._model = model
+        self._load_attempted = model is not None
+
+    def _resolve_model(self) -> Any | None:
+        if self._load_attempted:
+            return self._model
+        self._load_attempted = True
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
+        except Exception:
+            self._model = None
+            return None
+        try:
+            self._model = SentenceTransformer(self.model_name)
+        except Exception:
+            self._model = None
+        return self._model
+
+    def embed(self, text: str) -> list[float]:
+        if not text or not text.strip():
+            return []
+        model = self._resolve_model()
+        if model is None:
+            return []
+        try:
+            vector = model.encode(text)
+            if hasattr(vector, "tolist"):
+                vector = vector.tolist()
+            return [float(value) for value in vector]
+        except Exception:
+            return []
+
+    def __repr__(self):  # pragma: no cover
+        return f"SentenceTransformerEmbedder(model_name={self.model_name!r})"
+
+
 # ── Cosine similarity (no numpy) ─────────────────────────────────────────
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
@@ -324,6 +369,7 @@ __all__ = [
     "HashEmbedder",
     "GatewayEmbedder",
     "OpenAIEmbeddingAdapter",
+    "SentenceTransformerEmbedder",
     "cosine_similarity",
     "set_default_embedder",
     "get_default_embedder",
