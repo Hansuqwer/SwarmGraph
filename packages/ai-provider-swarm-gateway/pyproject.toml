@@ -16,6 +16,11 @@ dependencies = [
 
 [project.optional-dependencies]
 yaml = ["pyyaml>=6.0,<7"]
+tui = [
+    "textual>=0.80,<1",
+    "plotext>=5,<6",
+    "psutil>=5,<8",
+]
 langgraph = [
     "langgraph>=0.3,<2",
     "langgraph-checkpoint>=4.0.0,<5",

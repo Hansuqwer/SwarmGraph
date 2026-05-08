@@ -835,6 +835,31 @@ def audit_restore(
         _print_plain(f"restore requested for {restored} audit object(s)")
 
 
+@app.command("dashboard")
+def dashboard(
+    history_path: Optional[Path] = typer.Option(
+        None,
+        "--history-path",
+        help="Path to consensus_history.jsonl.",
+    ),
+    storage: Optional[Path] = typer.Option(
+        None,
+        "--storage",
+        help="Quota usage JSON path.",
+    ),
+) -> None:
+    """Launch the optional Textual monitoring dashboard."""
+    try:
+        from .dashboard import show_dashboard
+        show_dashboard(history_path=history_path, storage=storage)
+    except RuntimeError as e:
+        _err(str(e))
+        raise typer.Exit(1)
+    except ImportError as e:
+        _err("dashboard dependencies are not installed. Install with: uv sync --extra tui --dev")
+        raise typer.Exit(1) from e
+
+
 # ── v8: streaming HITL prompt helper ────────────────────────────────────
 
 def _streaming_hitl_prompt(
