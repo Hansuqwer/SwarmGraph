@@ -1,0 +1,56 @@
+# Source-of-truth label manifest for maintainers/agents.
+# GitHub labels must still be created/synced via UI, CLI, or a labeler action.
+- name: p0
+  color: b60205
+  description: Critical, blocks release or security posture
+- name: p1
+  color: d93f0b
+  description: High priority
+- name: p2
+  color: fbca04
+  description: Medium priority
+- name: p3
+  color: 0e8a16
+  description: Low priority
+- name: agent-ready
+  color: 1d76db
+  description: Ready for coding agent implementation
+- name: agent-review
+  color: 5319e7
+  description: External/agent review requiring triage
+- name: needs-triage
+  color: cfd3d7
+  description: Needs maintainer review
+- name: blocked
+  color: 000000
+  description: Blocked by dependency, decision, or failing baseline
+- name: runtime
+  color: 0052cc
+  description: SwarmGraph runtime or graph behavior
+- name: ci
+  color: 5319e7
+  description: GitHub Actions, checks, or release automation
+- name: security
+  color: b60205
+  description: Security, audit, secrets, or supply chain
+- name: docs
+  color: 0075ca
+  description: Documentation
+- name: tests
+  color: 0e8a16
+  description: Test coverage or test infra
+- name: packaging
+  color: c2e0c6
+  description: Build, package, dependency, or release artifact
+- name: gateway
+  color: 006b75
+  description: AI provider gateway
+- name: audit
+  color: d4c5f9
+  description: Audit chain, signing, verification
+- name: quota
+  color: fef2c0
+  description: Quota tracking or tenant isolation
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates

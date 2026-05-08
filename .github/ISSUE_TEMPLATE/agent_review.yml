@@ -1,0 +1,37 @@
+name: Agent review
+description: Convert an external review into triaged issues, not a mega patch.
+title: "review: "
+labels: [agent-review, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste review summaries here. Maintainers/agents should split accepted findings into separate Agent task issues.
+  - type: textarea
+    id: source
+    attributes:
+      label: Source
+      description: Tool/source, date, branch/commit, and any constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: findings
+    attributes:
+      label: Findings
+      description: Ordered list, highest severity first. Include file refs.
+    validations:
+      required: true
+  - type: textarea
+    id: recommended
+    attributes:
+      label: Recommended small issues
+      description: Proposed one-PR-per-issue breakdown.
+    validations:
+      required: true
+  - type: textarea
+    id: reject
+    attributes:
+      label: Reject or defer
+      description: Findings that should not be implemented now and why.
+    validations:
+      required: false

@@ -1,0 +1,82 @@
+name: Agent task
+description: Small, independently mergeable task for coding agents.
+title: "task: "
+labels: [agent-ready, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for Arena/Copilot/agent-generated work. Keep one issue per patch.
+        Do not paste secrets, tokens, or private credentials.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong or missing? Include file refs if known.
+      placeholder: "Example: release workflow uploads package-local dist dirs, but release job attaches dist/* without downloading artifacts."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Code refs, failing commands, logs, links, or prior review notes.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete conditions that must be true to close this issue.
+      placeholder: |
+        - Workflow builds all packages into one dist directory.
+        - Missing artifacts fail the job.
+        - Existing tests pass.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation commands
+      description: Commands the agent or reviewer should run.
+      value: |
+        /opt/homebrew/bin/uv run ruff check packages/
+        /opt/homebrew/bin/uv run pyright
+        /opt/homebrew/bin/uv run pytest packages/swarm-shared/tests packages/hive-swarm/tests packages/ai-provider-swarm-gateway/tests --tb=short -q
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and rollback
+      description: What could break? How do we revert safely?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - runtime
+        - ci
+        - security
+        - docs
+        - tests
+        - packaging
+        - gateway
+        - audit
+        - quota
+        - dependencies
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - p0
+        - p1
+        - p2
+        - p3
+    validations:
+      required: true
