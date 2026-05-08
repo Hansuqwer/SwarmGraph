@@ -231,6 +231,18 @@ def test_audit_chain_verify_respects_initial_prev_hash():
     assert second.verify() == 1
 
 
+def test_audit_chain_verify_accepts_pins():
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    assert chain.verify(expected_head_hash=chain.head_hash, expected_count=3) == 3
+    with pytest.raises(AuditChainBroken, match="head hash mismatch"):
+        chain.verify(expected_head_hash="a" * 64)
+    with pytest.raises(AuditChainBroken, match="record count mismatch"):
+        chain.verify(expected_count=99)
+
+
 def test_audit_chain_with_tenant_id():
     chain = AuditChain(swarm_id="s1", secret=SECRET, tenant_id="alice")
     r = chain.append(kind="worker_result", payload={"x": 1})

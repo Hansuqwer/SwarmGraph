@@ -287,17 +287,11 @@ def append_jsonl(path: Path, record: AuditRecord) -> None:
     that bound, but for safety we limit the line length here.
     """
     line = record.to_jsonl_line()
-    if len(line.encode("utf-8")) > 4000:
+    byte_len = len(line.encode("utf-8"))
+    if byte_len > 4000:
         # Defensive: large payloads risk torn appends on POSIX
-        # Truncate the payload field rather than fail silently
-        truncated_payload = {"_truncated": True, "_size": len(line)}
-        truncated = AuditRecord(
-            **{**record.model_dump(), "payload": truncated_payload}
-        )
-        # Note: this changes record_hash + signature, so re-sign would be
-        # required if we wanted verification to pass. Instead we raise.
         raise ValueError(
-            f"audit record too large to safely append ({len(line)} bytes); "
+            f"audit record too large to safely append ({byte_len} bytes); "
             f"reduce payload size or use a different persistence backend"
         )
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -386,12 +380,19 @@ class AuditChain:
             append_jsonl(self.jsonl_path, record)
         return record
 
-    def verify(self) -> int:
+    def verify(
+        self,
+        *,
+        expected_head_hash: str | None = None,
+        expected_count: int | None = None,
+    ) -> int:
         """Verify the in-memory chain. Returns count of records verified."""
         return verify_chain(
             self.records,
             secret=self.secret,
             initial_prev_hash=self._initial_prev_hash,
+            expected_head_hash=expected_head_hash,
+            expected_count=expected_count,
         )
 
 
