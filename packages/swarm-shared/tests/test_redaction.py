@@ -51,6 +51,18 @@ def test_redacts_postgres_dsn():
     assert "supersecret" not in redact_text(dsn)
 
 
+def test_redacts_ssn():
+    out = redact_text("candidate ssn 123-45-6789")
+    assert "123-45-6789" not in out
+    assert REDACTED in out
+
+
+def test_redacts_credit_card_like_number():
+    out = redact_text("card 4111 1111 1111 1111")
+    assert "4111" not in out
+    assert REDACTED in out
+
+
 def test_redacts_slack_token():
     assert REDACTED in redact_text(SLACK_TOKEN)
 

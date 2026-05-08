@@ -11,6 +11,7 @@ Patterns covered (May 2026 baseline):
   - JWTs: ``eyJ...`` (header.payload.signature)
   - Bearer tokens: ``Bearer <token>``
   - Database DSNs with embedded creds: ``postgres://user:pass@host/db``
+  - Common PII: US SSNs and 13-19 digit payment card-like numbers
   - Generic high-entropy long strings (opt-in via ``Redactor(detect_high_entropy=True)``)
 
 Both KEYS and VALUES of dicts are redacted (closes 20-SEC2).
@@ -41,6 +42,10 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bBearer\s+[A-Za-z0-9_\-\.]{10,}\b", re.IGNORECASE),
     # Database DSNs with embedded user:pass
     re.compile(r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^:\s]+:[^@\s]+@[^/\s]+(?:/[\w\-]*)?", re.IGNORECASE),
+    # US Social Security numbers
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    # Payment-card-like numbers, allowing spaces or dashes between groups.
+    re.compile(r"\b(?:\d[ -]?){13,19}\b"),
     # Slack tokens
     re.compile(r"\bxox[abprs]-[A-Za-z0-9\-]{10,}\b"),
     # Stripe keys
