@@ -22,6 +22,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import typer
 
@@ -124,6 +125,23 @@ def _parse_duration_to_seconds(s: str) -> int:
     n = int(m.group(1))
     unit = m.group(2)
     return n * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+
+
+def _parse_s3_uri(uri: str) -> tuple[str, str]:
+    parsed = urlparse(uri)
+    if parsed.scheme != "s3" or not parsed.netloc:
+        raise ValueError("expected s3://bucket/prefix")
+    return parsed.netloc, parsed.path.strip("/") or "audit"
+
+
+def _load_s3_audit_backend_class():
+    try:
+        from swarm_shared.audit_backends import S3AuditBackend
+    except ImportError as e:
+        raise RuntimeError(
+            "S3 audit support is unavailable; install S3 support with the s3 extra"
+        ) from e
+    return S3AuditBackend
 
 
 # ── version ────────────────────────────────────────────────────────────────
@@ -634,9 +652,9 @@ def inspect_state(json_output: bool = typer.Option(False, "--json")) -> None:
 
 @audit_app.command("verify")
 def audit_verify(
-    log_path: Path = typer.Argument(
-        ..., exists=True, file_okay=True, dir_okay=False,
-        help="Path to the JSONL audit log to verify.",
+    log_path: str = typer.Argument(
+        ...,
+        help="Path to JSONL audit log or s3://bucket/prefix.",
     ),
     secret_env: str = typer.Option(
         "HIVE_SWARM_AUDIT_SECRET", "--secret-env",
@@ -652,6 +670,11 @@ def audit_verify(
         None,
         "--expected-count",
         help="Expected number of audit records.",
+    ),
+    swarm_id: Optional[str] = typer.Option(
+        None,
+        "--swarm-id",
+        help="Swarm ID required when verifying s3:// audit logs.",
     ),
 ) -> None:
     """Verify an audit log's HMAC signatures + chain integrity.
@@ -679,7 +702,21 @@ def audit_verify(
         raise typer.Exit(1)
 
     try:
-        records = load_jsonl_chain(log_path)
+        if log_path.startswith("s3://"):
+            if not swarm_id:
+                _err("--swarm-id is required when verifying s3:// audit logs")
+                raise typer.Exit(2)
+            bucket, prefix = _parse_s3_uri(log_path)
+            backend_cls = _load_s3_audit_backend_class()
+            records = backend_cls(bucket=bucket, prefix=prefix).load(swarm_id)
+        else:
+            path = Path(log_path)
+            if not path.exists() or not path.is_file():
+                _err(f"audit log not found: {log_path}")
+                raise typer.Exit(2)
+            records = load_jsonl_chain(path)
+    except typer.Exit:
+        raise
     except Exception as e:
         _err(f"audit log malformed: {e}")
         raise typer.Exit(2)
@@ -757,6 +794,45 @@ def audit_verify(
             print(f"✅ verified {count} records")
             for kind, n in sorted(by_kind.items()):
                 print(f"  {kind:25s} {n}")
+
+
+@audit_app.command("restore")
+def audit_restore(
+    bucket: str = typer.Argument(..., help="S3 bucket containing audit logs."),
+    swarm_id: str = typer.Argument(..., help="Swarm ID to restore."),
+    prefix: str = typer.Option("audit", "--prefix", help="S3 prefix for audit partitions."),
+    tier: str = typer.Option("Bulk", "--tier", help="Restore tier: Bulk, Standard, or Expedited."),
+    days: int = typer.Option(30, "--days", min=1, help="Number of days to keep restored copy."),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Initiate restore requests for archived S3 audit log partitions."""
+    try:
+        backend_cls = _load_s3_audit_backend_class()
+        restored = backend_cls(bucket=bucket, prefix=prefix).restore_archive(
+            swarm_id,
+            days=days,
+            tier=tier,
+        )
+    except Exception as e:
+        if json_output:
+            print(json.dumps({"ok": False, "error": str(e)}))
+        else:
+            _err(f"audit restore failed: {e}")
+        raise typer.Exit(2)
+
+    payload = {
+        "ok": True,
+        "bucket": bucket,
+        "prefix": prefix,
+        "swarm_id": swarm_id,
+        "restored": restored,
+        "tier": tier,
+        "days": days,
+    }
+    if json_output:
+        print(json.dumps(payload, indent=2))
+    else:
+        _print_plain(f"restore requested for {restored} audit object(s)")
 
 
 # ── v8: streaming HITL prompt helper ────────────────────────────────────

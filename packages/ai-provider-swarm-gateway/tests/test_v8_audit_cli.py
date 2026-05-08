@@ -335,3 +335,91 @@ def test_audit_verify_help_shows_pin_flags():
     assert result.exit_code == 0
     assert "--expected-head-hash" in result.stdout
     assert "--expected-count" in result.stdout
+
+
+# ── S3 audit verification / restore ─────────────────────────────────────
+
+class _FakeS3Backend:
+    records: list[AuditRecord] = []
+    restored = 0
+    init_args: dict | None = None
+    restore_args: dict | None = None
+
+    def __init__(self, *, bucket: str, prefix: str = "audit") -> None:
+        type(self).init_args = {"bucket": bucket, "prefix": prefix}
+
+    def load(self, swarm_id: str) -> list[AuditRecord]:
+        return [record for record in self.records if record.swarm_id == swarm_id]
+
+    def restore_archive(self, swarm_id: str, *, days: int = 30, tier: str = "Bulk") -> int:
+        type(self).restore_args = {"swarm_id": swarm_id, "days": days, "tier": tier}
+        return self.restored
+
+
+def _install_fake_s3_backend(monkeypatch, records: list[AuditRecord], restored: int = 0) -> type[_FakeS3Backend]:
+    _FakeS3Backend.records = records
+    _FakeS3Backend.restored = restored
+    _FakeS3Backend.init_args = None
+    _FakeS3Backend.restore_args = None
+    monkeypatch.setattr(
+        "ai_provider_swarm_gateway.cli._load_s3_audit_backend_class",
+        lambda: _FakeS3Backend,
+    )
+    return _FakeS3Backend
+
+
+def test_audit_verify_s3_requires_swarm_id(monkeypatch):
+    _install_fake_s3_backend(monkeypatch, [])
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+
+    result = runner.invoke(app, ["audit", "verify", "s3://bucket/audit"])
+
+    assert result.exit_code == 2
+    assert "swarm-id" in (result.stdout + (result.stderr or "")).lower()
+
+
+def test_audit_verify_s3_success_json(monkeypatch):
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(2):
+        chain.append(kind="worker_result", payload={"i": i})
+    fake = _install_fake_s3_backend(monkeypatch, chain.records)
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+
+    result = runner.invoke(app, [
+        "audit", "verify", "s3://bucket/audit", "--swarm-id", "s1", "--json",
+    ])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["verified"] == 2
+    assert fake.init_args == {"bucket": "bucket", "prefix": "audit"}
+
+
+def test_audit_verify_s3_pin_mismatch_exits_3(monkeypatch):
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    chain.append(kind="worker_result", payload={"i": 0})
+    _install_fake_s3_backend(monkeypatch, chain.records)
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+
+    result = runner.invoke(app, [
+        "audit", "verify", "s3://bucket/audit", "--swarm-id", "s1", "--expected-count", "2",
+    ])
+
+    assert result.exit_code == 3
+
+
+def test_audit_restore_s3_success_json(monkeypatch):
+    fake = _install_fake_s3_backend(monkeypatch, [], restored=3)
+
+    result = runner.invoke(app, [
+        "audit", "restore", "bucket", "s1", "--prefix", "audit", "--tier", "Bulk",
+        "--days", "30", "--json",
+    ])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["restored"] == 3
+    assert fake.init_args == {"bucket": "bucket", "prefix": "audit"}
+    assert fake.restore_args == {"swarm_id": "s1", "days": 30, "tier": "Bulk"}
