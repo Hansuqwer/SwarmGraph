@@ -25,6 +25,10 @@ uv.lock.bak
 *.bak
 *.bak.*
 
+# Local binary artifacts
+/*.pdf
+/*.png
+
 # pytest
 .pytest_cache/
 .coverage
