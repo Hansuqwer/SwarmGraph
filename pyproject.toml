@@ -25,7 +25,7 @@ ai-provider-swarm-gateway = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0,<9",
+    "pytest>=8.0,<10",
     "pytest-asyncio>=0.23,<1",
     "pytest-cov>=5.0,<7",
     "hypothesis>=6.110",
