@@ -64,3 +64,6 @@ secrets/
 /tmp/
 scratch/
 *.local.py
+
+# Local review bundles
+docs/patches/

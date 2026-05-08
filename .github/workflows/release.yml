@@ -67,10 +67,23 @@ jobs:
         id: changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          NOTES="$(
+            awk -v version="$VERSION" '
+              $0 == "## [" version "]" || index($0, "## [" version "] ") == 1 {
+                found = 1
+                next
+              }
+              found && /^## \[/ { exit }
+              found { print }
+            ' CHANGELOG.md
+          )"
+          if [ -z "$NOTES" ]; then
+            echo "::error::No CHANGELOG.md section found for release version ${VERSION}"
+            exit 1
+          fi
           {
             echo "notes<<EOF"
-            echo "$NOTES"
+            printf '%s\n' "$NOTES"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
