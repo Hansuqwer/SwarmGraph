@@ -13,6 +13,7 @@ AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"
 GITHUB_PAT = "ghp_" + "abcdefghijklmnopqrstuvwxyz0123456789"
 SLACK_TOKEN = "xoxb" + "-1234567890-abcdef"
 STRIPE_KEY = "sk" + "_live_" + "abcdefghijklmnopqrstuvwx"
+GOOGLE_API_KEY = "AI" + "za" + "Sy" + ("A" * 33)
 
 
 # ── Pattern-by-pattern coverage ─────────────────────────────────────────────
@@ -29,7 +30,7 @@ def test_redacts_aws_access_key():
 
 
 def test_redacts_google_api_key():
-    assert REDACTED in redact_text("AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI")
+    assert REDACTED in redact_text(GOOGLE_API_KEY)
 
 
 def test_redacts_github_pat():
