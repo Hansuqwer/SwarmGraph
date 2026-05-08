@@ -33,10 +33,13 @@ smoke:
 	uv run python examples/01_smoke_stub_mode.py
 
 audit-scan:
-	@git diff --cached | grep -iE \
-	  'sk-[a-z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|Bearer [a-zA-Z0-9]{20,}' \
-	  && echo "WARNING: potential secret detected — abort commit" \
-	  || echo "Token scan: clean"
+	@if git diff --cached | grep -iE \
+	  'sk-[a-z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|Bearer [a-zA-Z0-9]{20,}'; then \
+	  echo "WARNING: potential secret detected; aborting commit" >&2; \
+	  exit 1; \
+	else \
+	  echo "Token scan: clean"; \
+	fi
 
 security:
 	uv run bandit -r packages/swarm-shared/swarm_shared packages/hive-swarm/swarm packages/ai-provider-swarm-gateway/src -f screen

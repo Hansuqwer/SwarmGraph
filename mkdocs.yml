@@ -45,6 +45,7 @@ nav:
       - Audit Verification: operations/audit-verification.md
       - Cost Tracking: operations/cost-tracking.md
       - Deployment: operations/deployment.md
+      - Production Checklist: operations/production-checklist.md
       - Troubleshooting: operations/troubleshooting.md
   - History:
       - Roadmap: history/README.md
