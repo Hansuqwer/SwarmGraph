@@ -1,1 +1,1 @@
-# PydanticLangraphSwarm
+SwarmGraph is an open-source Python framework for building type-safe AI agent swarms. It combines Pydantic schemas, LangGraph workflows, and swarm-style orchestration so small, specialized agents can collaborate through structured execution paths using free and open AI providers.
