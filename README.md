@@ -2,7 +2,12 @@
 
 [![CI](https://github.com/Hansuqwer/SwarmGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/Hansuqwer/SwarmGraph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org
+
+A Pydantic-strict, voting-based, audit-first LangGraph runtime for regulated or high-assurance multi-agent workflows where consensus, replay safety, signed audit trails, tenant isolation, and deterministic orchestration matter more than free-form conversational handoffs.
+
+SwarmGraph is not an OpenAI-Swarm-style handoff framework. It is a Pydantic-strict, voting-based, audit-first LangGraph runtime for parallel agent deliberation, consensus, HITL approval, and signed execution records.
+
 
 **Type-safe AI agent swarms with Pydantic v2, LangGraph, and a multi-provider gateway.**
 
