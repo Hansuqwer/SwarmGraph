@@ -49,6 +49,7 @@ app = typer.Typer(
 quota_app = typer.Typer(name="quota", help="Local quota tracking.", no_args_is_help=True)
 providers_app = typer.Typer(name="providers", help="Provider registry inspection.", no_args_is_help=True)
 tenants_app = typer.Typer(name="tenants", help="Multi-tenant quota management.", no_args_is_help=True)
+pool_app = typer.Typer(name="pool", help="Encrypted account vault management.", no_args_is_help=True)
 auth_app = typer.Typer(name="auth", help="Opt-in auth helpers.", no_args_is_help=True)
 audit_app = typer.Typer(
     name="audit",
@@ -60,6 +61,7 @@ app.add_typer(providers_app)
 app.add_typer(tenants_app)
 app.add_typer(auth_app)
 app.add_typer(audit_app)
+tenants_app.add_typer(pool_app)
 
 _console = Console() if _HAS_RICH else None
 
@@ -346,6 +348,116 @@ def tenants_storage_path(
 ) -> None:
     """Print the canonical storage path for a tenant id."""
     print(QuotaTracker.tenant_storage_path(tenant_id))
+
+
+# ── encrypted account pool subcommands ──────────────────────────────────
+
+@pool_app.command("init")
+def pool_init(
+    key_path: Path = typer.Option(Path.home() / ".ai_provider_gateway" / "vault.key", "--key-path"),
+) -> None:
+    """Create a new local vault key file with 0600 permissions."""
+    try:
+        from .quota.pool import create_vault_key
+
+        create_vault_key(key_path)
+    except Exception as exc:
+        _err(f"could not initialize vault key: {exc}")
+        raise typer.Exit(1) from exc
+    _print_plain(f"created vault key: {key_path}")
+
+
+@pool_app.command("add")
+def pool_add(
+    provider: str = typer.Argument(...),
+    account_id: str = typer.Argument(...),
+    secret: str = typer.Option(..., "--secret", prompt=True, hide_input=True),
+    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
+    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+) -> None:
+    """Add or update one encrypted account secret. Secret is never printed."""
+    try:
+        from .quota.pool import DEFAULT_KEY_PATH, DEFAULT_VAULT_PATH, SecretStore
+
+        store = SecretStore(
+            vault_path or DEFAULT_VAULT_PATH,
+            key_path=key_path or DEFAULT_KEY_PATH,
+        )
+        store.add_key(provider, account_id, secret)
+    except Exception as exc:
+        _err(f"could not store account secret: {exc}")
+        raise typer.Exit(1) from exc
+    _print_plain(f"stored account provider={provider} account={account_id}")
+
+
+@pool_app.command("list")
+def pool_list(
+    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
+    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """List provider/account IDs in the encrypted vault, never secrets."""
+    try:
+        from .quota.pool import DEFAULT_KEY_PATH, DEFAULT_VAULT_PATH, SecretStore
+
+        summary = SecretStore(
+            vault_path or DEFAULT_VAULT_PATH,
+            key_path=key_path or DEFAULT_KEY_PATH,
+        ).to_summary()
+    except Exception as exc:
+        _err(f"could not read encrypted vault: {exc}")
+        raise typer.Exit(1) from exc
+    if json_output:
+        print(json.dumps(summary, sort_keys=True))
+        return
+    if not summary:
+        _print_plain("[no accounts found]")
+        return
+    for provider, account_ids in summary.items():
+        for account_id in account_ids:
+            _print_plain(f"{provider:20s} {account_id}")
+
+
+@pool_app.command("sync")
+def pool_sync(
+    bucket: str = typer.Option(..., "--bucket", "-b"),
+    key: str = typer.Option("secrets.json.enc", "--key", "-k"),
+    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
+    push: bool = typer.Option(False, "--push"),
+    pull: bool = typer.Option(False, "--pull"),
+) -> None:
+    """Push/pull the encrypted vault blob to S3. Secrets are not logged."""
+    if push == pull:
+        _err("choose exactly one of --push or --pull")
+        raise typer.Exit(2)
+    try:
+        import boto3  # type: ignore[import-not-found]
+        from boto3.s3.transfer import TransferConfig  # type: ignore[import-not-found]
+        from .quota.pool import DEFAULT_VAULT_PATH
+
+        path = vault_path or DEFAULT_VAULT_PATH
+        config = TransferConfig(
+            multipart_threshold=8 * 1024 * 1024,
+            max_concurrency=10,
+            use_threads=True,
+        )
+        s3 = boto3.client("s3")
+        if push:
+            if not path.exists():
+                _err(f"vault file not found: {path}")
+                raise typer.Exit(1)
+            s3.upload_file(str(path), bucket, key, Config=config)
+            _print_plain(f"pushed encrypted vault to s3://{bucket}/{key}")
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            s3.download_file(bucket, key, str(path), Config=config)
+            os.chmod(path, 0o600)
+            _print_plain(f"pulled encrypted vault from s3://{bucket}/{key}")
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        _err(f"vault sync failed: {exc}")
+        raise typer.Exit(1) from exc
 
 
 # ── auth subcommands ────────────────────────────────────────────────────
