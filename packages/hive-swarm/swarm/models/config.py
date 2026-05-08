@@ -47,6 +47,16 @@ class SwarmConfig(FrozenModel):
     # ── Topology & agent count ────────────────────────────────────────────
     topology: SwarmTopology = "hierarchical"
     max_agents: int = Field(default=8, ge=1, le=100)
+    auto_scale_agents: bool = Field(
+        default=False,
+        description="Cap runtime agent fan-out based on local available RAM.",
+    )
+    scaling_ram_per_agent_mb: int = Field(
+        default=512,
+        ge=128,
+        le=262_144,
+        description="Available RAM budget per agent when auto_scale_agents=True.",
+    )
     strategy: SwarmStrategy = "development"
 
     # ── Consensus ─────────────────────────────────────────────────────────

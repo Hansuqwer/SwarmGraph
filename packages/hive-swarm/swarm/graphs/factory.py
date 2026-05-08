@@ -30,6 +30,7 @@ from ..nodes.consensus import consensus_node, route_after_consensus
 from ..nodes.judge import judge_node, route_after_judge
 from ..nodes.queen import fast_agent_node, medium_agent_node, queen_node
 from ..nodes.router import route_task, router_node
+from ..nodes.scaling import scaling_node
 from ..nodes.sona import distill_node, memory_retrieve_node
 from ..nodes.worker import collect_results_node, worker_node
 
@@ -159,6 +160,7 @@ def build_swarm_graph(
     all_queen_names = list(QUEEN_NODE_NAMES.values())
 
     builder.add_node("memory_retrieve", memory_retrieve_node)
+    builder.add_node("scaling_node", scaling_node)
     builder.add_node("route_task", router_node)
     builder.add_node("fast_agent", fast_agent_node)
     builder.add_node("medium_agent", medium_agent_node)
@@ -172,7 +174,8 @@ def build_swarm_graph(
     builder.add_node("distill_node", distill_node)
 
     builder.add_edge(START, "memory_retrieve")
-    builder.add_edge("memory_retrieve", "route_task")
+    builder.add_edge("memory_retrieve", "scaling_node")
+    builder.add_edge("scaling_node", "route_task")
 
     routing_targets = {
         "fast_agent": "fast_agent",
@@ -230,6 +233,7 @@ class _MockCompiledGraph:
 
     def invoke(self, state, config=None):
         state = memory_retrieve_node(state)
+        state = scaling_node(state)
         state = router_node(state)
         tier = state.get("complexity_tier", "tier3_swarm")
 

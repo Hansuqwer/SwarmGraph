@@ -140,20 +140,24 @@ def queen_node(state: dict[str, Any]) -> list[Any]:
 
     topology: SwarmTopology = swarm.config.topology
     decompose = _DECOMPOSE_FN[topology]
+    effective_max_agents = int(
+        swarm.runtime_metadata.get("applied_agent_cap") or swarm.config.max_agents
+    )
+    effective_max_agents = max(1, min(effective_max_agents, swarm.config.max_agents))
 
     prior_agreement = (
         swarm.consensus_result.agreement_fraction
         if swarm.consensus_result else 1.0
     )
-    sub_tasks = decompose(swarm.objective, swarm.config.max_agents,
+    sub_tasks = decompose(swarm.objective, effective_max_agents,
                           prior_agreement=prior_agreement)
 
-    available_slots = swarm.config.max_agents - len(swarm.agents)
+    available_slots = effective_max_agents - len(swarm.agents)
     if len(sub_tasks) > available_slots:
         sub_tasks = sub_tasks[:available_slots]
         swarm.add_error(
             f"queen_node: truncated decomposition to {available_slots} tasks "
-            f"(config.max_agents={swarm.config.max_agents})"
+            f"(effective_max_agents={effective_max_agents})"
         )
 
     new_tasks: list[SwarmTask] = []

@@ -112,6 +112,10 @@ class SwarmState(HardenedModel):
         ge=0,
         description="Monotonic counter for the next audit record's sequence field.",
     )
+    runtime_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Node-generated runtime hints; not persisted config.",
+    )
 
     created_at: float = Field(default_factory=now_ts)
     updated_at: float = Field(default_factory=now_ts)
