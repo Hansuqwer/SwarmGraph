@@ -665,7 +665,7 @@ def audit_verify(
 
     secret = _os_v8.environ.get(secret_env)
     if not secret:
-        _err(f"env var {secret_env!r} unset; cannot verify signatures")
+        _err("required audit secret environment variable is unset; cannot verify signatures")
         raise typer.Exit(1)
 
     try:
