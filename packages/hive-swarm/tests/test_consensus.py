@@ -79,6 +79,11 @@ def test_bft_rejects_n_less_than_4():
     assert ">=4" in r.failure_reason
 
 
+def test_bft_raises_on_invalid_quorum_fraction():
+    with pytest.raises(ValueError, match="quorum_fraction"):
+        bft_consensus([_vote("a1", "coder", "x")], quorum_fraction=1.0)
+
+
 def test_bft_textbook_quorum_n4():
     """n=4: floor(2*4/3)+1 = 3 → tolerates 1 fault."""
     votes = (

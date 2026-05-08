@@ -67,3 +67,4 @@ scratch/
 
 # Local review bundles
 docs/patches/
+**/PATCH_NOTE_*.md

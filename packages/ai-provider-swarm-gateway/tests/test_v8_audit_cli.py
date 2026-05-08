@@ -173,3 +173,165 @@ def test_audit_verify_empty_log_exits_zero(tmp_path: Path, monkeypatch):
     result = runner.invoke(app, ["audit", "verify", str(log_path)])
     assert result.exit_code == 0
     assert "empty" in result.stdout.lower() or "0" in result.stdout
+
+
+# ── Pinned audit verification CLI flags ─────────────────────────────────
+
+def test_audit_verify_expected_head_hash_pass(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-head-hash", chain.head_hash,
+    ])
+
+    assert result.exit_code == 0
+
+
+def test_audit_verify_expected_head_hash_fail(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-head-hash", "a" * 64,
+    ])
+
+    assert result.exit_code == 3
+    assert "head hash" in (result.stdout + (result.stderr or "")).lower()
+
+
+def test_audit_verify_expected_count_pass(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(4):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-count", "4",
+    ])
+
+    assert result.exit_code == 0
+
+
+def test_audit_verify_expected_count_fail(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-count", "10",
+    ])
+
+    assert result.exit_code == 3
+    assert "count" in (result.stdout + (result.stderr or "")).lower()
+
+
+def test_audit_verify_both_pins_pass(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(5):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-head-hash", chain.head_hash,
+        "--expected-count", "5",
+    ])
+
+    assert result.exit_code == 0
+
+
+def test_audit_verify_both_pins_wrong_count_exits_3(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-head-hash", chain.head_hash,
+        "--expected-count", "99",
+    ])
+
+    assert result.exit_code == 3
+
+
+def test_audit_verify_json_output_includes_pins(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(2):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path), "--json",
+        "--expected-head-hash", chain.head_hash,
+        "--expected-count", "2",
+    ])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["expected_head_hash"] == chain.head_hash
+    assert payload["expected_count"] == 2
+
+
+def test_audit_verify_empty_log_with_expected_count_nonzero_exits_3(
+    tmp_path: Path,
+    monkeypatch,
+):
+    log_path = tmp_path / "audit.jsonl"
+    log_path.write_text("")
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-count", "5",
+    ])
+
+    assert result.exit_code == 3
+
+
+def test_audit_verify_truncated_log_caught_by_head_hash_pin(
+    tmp_path: Path,
+    monkeypatch,
+):
+    log_path = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
+    for i in range(5):
+        chain.append(kind="worker_result", payload={"i": i})
+    full_head = chain.head_hash
+
+    lines = log_path.read_text().splitlines()[:3]
+    log_path.write_text("\n".join(lines) + "\n")
+
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+    assert runner.invoke(app, ["audit", "verify", str(log_path)]).exit_code == 0
+    result = runner.invoke(app, [
+        "audit", "verify", str(log_path),
+        "--expected-head-hash", full_head,
+    ])
+
+    assert result.exit_code == 3
+
+
+def test_audit_verify_help_shows_pin_flags():
+    result = runner.invoke(app, ["audit", "verify", "--help"])
+
+    assert result.exit_code == 0
+    assert "--expected-head-hash" in result.stdout
+    assert "--expected-count" in result.stdout

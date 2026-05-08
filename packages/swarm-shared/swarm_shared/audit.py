@@ -237,6 +237,8 @@ def verify_chain(
     *,
     secret: bytes | str,
     initial_prev_hash: str = GENESIS_PREV_HASH,
+    expected_head_hash: str | None = None,
+    expected_count: int | None = None,
 ) -> int:
     """Verify an entire chain of records in order.
 
@@ -245,6 +247,8 @@ def verify_chain(
     Also catches:
       - Out-of-order sequence numbers
       - Duplicate sequence numbers
+
+    Optional pins catch valid-prefix truncation or whole-log replacement.
     """
     prev_hash = initial_prev_hash
     expected_sequence = 0
@@ -260,6 +264,15 @@ def verify_chain(
         prev_hash = record.record_hash
         expected_sequence += 1
         count += 1
+    if expected_count is not None and count != expected_count:
+        raise AuditChainBroken(
+            f"record count mismatch: expected={expected_count}, got={count}"
+        )
+    if expected_head_hash is not None and prev_hash != expected_head_hash:
+        raise AuditChainBroken(
+            f"head hash mismatch: expected={expected_head_hash[:16]}..., "
+            f"got={prev_hash[:16]}..."
+        )
     return count
 
 
@@ -341,6 +354,7 @@ class AuditChain:
         self.tenant_id = tenant_id
         self.secret = secret
         self.jsonl_path = jsonl_path
+        self._initial_prev_hash = initial_prev_hash
         self._prev_hash = initial_prev_hash
         self._sequence = 0
         self.records: list[AuditRecord] = []
@@ -377,7 +391,7 @@ class AuditChain:
         return verify_chain(
             self.records,
             secret=self.secret,
-            initial_prev_hash=GENESIS_PREV_HASH,
+            initial_prev_hash=self._initial_prev_hash,
         )
 
 

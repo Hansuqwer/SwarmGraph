@@ -199,7 +199,8 @@ def bft_consensus(
 ) -> ConsensusResult:
     """Practical BFT: textbook formula `floor(2n/3) + 1` + n>=4 minimum."""
     # F-22C: defensive
-    assert quorum_fraction < 1.0, "BFT quorum_fraction=1.0 defeats fault tolerance"
+    if quorum_fraction >= 1.0:
+        raise ValueError("BFT quorum_fraction must be < 1.0 to tolerate Byzantine faults")
 
     if not votes:
         return ConsensusResult(

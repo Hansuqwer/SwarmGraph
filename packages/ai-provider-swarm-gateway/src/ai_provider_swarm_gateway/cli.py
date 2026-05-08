@@ -643,6 +643,16 @@ def audit_verify(
         help="Env var holding the HMAC secret used to sign the log.",
     ),
     json_output: bool = typer.Option(False, "--json"),
+    expected_head_hash: Optional[str] = typer.Option(
+        None,
+        "--expected-head-hash",
+        help="Expected final audit-chain head hash.",
+    ),
+    expected_count: Optional[int] = typer.Option(
+        None,
+        "--expected-count",
+        help="Expected number of audit records.",
+    ),
 ) -> None:
     """Verify an audit log's HMAC signatures + chain integrity.
 
@@ -675,14 +685,38 @@ def audit_verify(
         raise typer.Exit(2)
 
     if not records:
+        if expected_count not in (None, 0):
+            error = f"record count mismatch: expected={expected_count}, got=0"
+            if json_output:
+                print(json.dumps({"verified": 0, "ok": False, "error": error}))
+            else:
+                _err(f"❌ chain broken: {error}")
+            raise typer.Exit(3)
+        if expected_head_hash is not None and expected_head_hash != "GENESIS":
+            error = "head hash mismatch: expected non-GENESIS, got GENESIS"
+            if json_output:
+                print(json.dumps({"verified": 0, "ok": False, "error": error}))
+            else:
+                _err(f"❌ chain broken: {error}")
+            raise typer.Exit(3)
         if json_output:
-            print(json.dumps({"verified": 0, "ok": True, "reason": "empty log"}))
+            payload: dict[str, Any] = {"verified": 0, "ok": True, "reason": "empty log"}
+            if expected_head_hash is not None:
+                payload["expected_head_hash"] = expected_head_hash
+            if expected_count is not None:
+                payload["expected_count"] = expected_count
+            print(json.dumps(payload))
         else:
             _print_plain("[empty audit log]")
         return
 
     try:
-        count = verify_chain(records, secret=secret.encode("utf-8"))
+        count = verify_chain(
+            records,
+            secret=secret.encode("utf-8"),
+            expected_head_hash=expected_head_hash,
+            expected_count=expected_count,
+        )
     except AuditChainBroken as e:
         if json_output:
             print(json.dumps({
@@ -700,12 +734,17 @@ def audit_verify(
         by_kind[r.kind] = by_kind.get(r.kind, 0) + 1
 
     if json_output:
-        print(json.dumps({
+        payload = {
             "verified": count, "ok": True,
             "total_records": len(records),
             "swarm_ids": sorted({r.swarm_id for r in records}),
             "by_kind": by_kind,
-        }, indent=2))
+        }
+        if expected_head_hash is not None:
+            payload["expected_head_hash"] = expected_head_hash
+        if expected_count is not None:
+            payload["expected_count"] = expected_count
+        print(json.dumps(payload, indent=2))
     else:
         if _HAS_RICH and _console:
             t = Table(title=f"Audit log verified: {log_path}")

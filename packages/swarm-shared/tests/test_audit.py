@@ -217,6 +217,20 @@ def test_audit_chain_self_verifies():
     assert chain.verify() == 7
 
 
+def test_audit_chain_verify_respects_initial_prev_hash():
+    first = AuditChain(swarm_id="s1", secret=SECRET)
+    first.append(kind="worker_result", payload={"i": 0})
+
+    second = AuditChain(
+        swarm_id="s1",
+        secret=SECRET,
+        initial_prev_hash=first.head_hash,
+    )
+    second.append(kind="worker_result", payload={"i": 1})
+
+    assert second.verify() == 1
+
+
 def test_audit_chain_with_tenant_id():
     chain = AuditChain(swarm_id="s1", secret=SECRET, tenant_id="alice")
     r = chain.append(kind="worker_result", payload={"x": 1})
@@ -328,3 +342,100 @@ def test_disk_truncation_caught_on_reload(tmp_path: Path):
     loaded = load_jsonl_chain(fp)
     with pytest.raises(AuditChainBroken):
         verify_chain(loaded, secret=SECRET)
+
+
+# ── Pinned audit chain verification ─────────────────────────────────────
+
+def test_verify_chain_expected_head_hash_matches():
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(4):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    assert verify_chain(
+        chain.records,
+        secret=SECRET,
+        expected_head_hash=chain.head_hash,
+    ) == 4
+
+
+def test_verify_chain_expected_head_hash_mismatch_raises():
+    records = _build_chain(3)
+
+    with pytest.raises(AuditChainBroken, match="head hash mismatch"):
+        verify_chain(records, secret=SECRET, expected_head_hash="a" * 64)
+
+
+def test_verify_chain_expected_head_hash_catches_truncation():
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(5):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    truncated = chain.records[:3]
+    assert verify_chain(truncated, secret=SECRET) == 3
+    with pytest.raises(AuditChainBroken, match="head hash mismatch"):
+        verify_chain(truncated, secret=SECRET, expected_head_hash=chain.head_hash)
+
+
+def test_verify_chain_expected_count_matches():
+    records = _build_chain(6)
+
+    assert verify_chain(records, secret=SECRET, expected_count=6) == 6
+
+
+def test_verify_chain_expected_count_mismatch_raises():
+    records = _build_chain(3)
+
+    with pytest.raises(AuditChainBroken, match="record count mismatch"):
+        verify_chain(records, secret=SECRET, expected_count=5)
+
+
+def test_verify_chain_expected_count_catches_truncation():
+    records = _build_chain(5)
+    truncated = records[:3]
+
+    assert verify_chain(truncated, secret=SECRET) == 3
+    with pytest.raises(AuditChainBroken, match="record count mismatch"):
+        verify_chain(truncated, secret=SECRET, expected_count=5)
+
+
+def test_verify_chain_both_pins_pass():
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(4):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    assert verify_chain(
+        chain.records,
+        secret=SECRET,
+        expected_head_hash=chain.head_hash,
+        expected_count=4,
+    ) == 4
+
+
+def test_verify_chain_both_pins_count_fails_first():
+    chain = AuditChain(swarm_id="s1", secret=SECRET)
+    for i in range(3):
+        chain.append(kind="worker_result", payload={"i": i})
+
+    with pytest.raises(AuditChainBroken, match="record count mismatch"):
+        verify_chain(
+            chain.records,
+            secret=SECRET,
+            expected_head_hash="b" * 64,
+            expected_count=10,
+        )
+
+
+def test_verify_chain_empty_pins():
+    assert verify_chain([], secret=SECRET, expected_count=0) == 0
+    assert verify_chain([], secret=SECRET, expected_head_hash=GENESIS_PREV_HASH) == 0
+    with pytest.raises(AuditChainBroken, match="record count mismatch"):
+        verify_chain([], secret=SECRET, expected_count=1)
+    with pytest.raises(AuditChainBroken, match="head hash mismatch"):
+        verify_chain([], secret=SECRET, expected_head_hash="b" * 64)
+
+
+def test_verify_chain_pins_omitted_preserves_existing_behavior():
+    records = _build_chain(5)
+
+    assert verify_chain(records, secret=SECRET) == 5
+    assert verify_chain(records[:3], secret=SECRET) == 3

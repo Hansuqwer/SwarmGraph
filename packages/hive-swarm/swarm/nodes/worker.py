@@ -74,7 +74,8 @@ def _consume_stream_to_response(
     finish = ""
     for chunk in chunks_iter:
         if isinstance(chunk, StreamChunk):
-            accumulated = chunk.text or accumulated
+            if chunk.text:
+                accumulated += chunk.text
             if chunk.done:
                 finish = chunk.finish_reason or finish
         else:

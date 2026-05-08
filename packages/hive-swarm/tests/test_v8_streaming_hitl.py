@@ -8,6 +8,7 @@ from swarm.llm.dispatch import (
     StreamChunk,
     StreamingHITLInterrupt,
 )
+from swarm.nodes.worker import _consume_stream_to_response
 
 
 # ── StreamingHITLInterrupt basic shape ──────────────────────────────────
@@ -26,6 +27,21 @@ def test_interrupt_carries_reason_and_partial():
 def test_interrupt_default_matched_pattern_empty():
     si = StreamingHITLInterrupt("max_chars_exceeded", "x" * 100)
     assert si.matched_pattern == ""
+
+
+def test_consume_stream_concatenates_all_chunks():
+    chunks = [
+        StreamChunk(delta="Hello", text="Hello", index=0, done=False, finish_reason=""),
+        StreamChunk(delta=" world", text=" world", index=1, done=False, finish_reason=""),
+        StreamChunk(delta="!", text="!", index=2, done=True, finish_reason="stop"),
+    ]
+    resp = _consume_stream_to_response(
+        iter(chunks),
+        fallback_provider_id="test",
+        fallback_model_id="test-model",
+    )
+    assert resp.text == "Hello world!"
+    assert resp.finish_reason == "stop"
 
 
 # ── Guard via dispatcher ────────────────────────────────────────────────
