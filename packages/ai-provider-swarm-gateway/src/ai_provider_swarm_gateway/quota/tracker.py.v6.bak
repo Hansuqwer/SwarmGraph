@@ -1,0 +1,235 @@
+"""QuotaTracker — patched.
+
+F-29A (CRITICAL): atomic write via swarm_shared.atomic_write_json
+   (was Path.write_text — non-atomic, crash mid-write corrupts JSON,
+   next _load resets all counters to 0).
+F-29B (CRITICAL): file-locking via fcntl.flock (POSIX) / msvcrt.locking (Windows)
+   (was unprotected — two-process write race lost increments).
+F-29-PERF1: lazy-load on first get_usage call (was sync I/O on import).
+F-29-LG1: storage_path injectable (was hard-coded singleton in module-level init).
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterator
+
+from swarm_shared.atomic_write import atomic_write_json
+
+from ..models.quota import QuotaUsage
+
+
+_DEFAULT_STORAGE = Path.home() / ".ai_provider_gateway" / "usage.json"
+
+
+# ── Cross-platform file locking ──────────────────────────────────────────
+
+if sys.platform == "win32":
+    import msvcrt
+
+    @contextmanager
+    def _file_lock(fh) -> Iterator[None]:
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+            yield
+        finally:
+            try:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+else:
+    import fcntl
+
+    @contextmanager
+    def _file_lock(fh) -> Iterator[None]:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+class QuotaTracker:
+    """Local quota tracker — atomic writes, flock'd, append-only."""
+
+    def __init__(self, storage_path: Path | None = None) -> None:
+        self.storage_path = storage_path or _DEFAULT_STORAGE
+        self._lock_path = self.storage_path.with_suffix(self.storage_path.suffix + ".lock")
+        self._data: dict[str, dict[str, Any]] | None = None  # F-29-PERF1: lazy
+
+    # ── Persistence ──────────────────────────────────────────────────────
+
+    def _ensure_loaded(self) -> None:
+        if self._data is not None:
+            return
+        if self.storage_path.exists():
+            try:
+                self._data = json.loads(self.storage_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                # Corrupt → start fresh (atomic write protects against this in future)
+                self._data = {}
+        else:
+            self._data = {}
+
+    def _save_locked(self) -> None:
+        """F-29A + F-29B: hold an exclusive lock around read-modify-write."""
+        assert self._data is not None
+        self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+        # Hold a lock on a sidecar file (NEVER the data file — atomic_write_json
+        # replaces the data file via os.replace, which would invalidate any lock
+        # held on the original inode).
+        with open(self._lock_path, "a+") as lock_fh:
+            with _file_lock(lock_fh):
+                # Re-read in case another process wrote between our read + this lock acquisition
+                if self.storage_path.exists():
+                    try:
+                        on_disk = json.loads(self.storage_path.read_text(encoding="utf-8"))
+                        # Merge: take MAX of each counter (append-only invariant)
+                        merged: dict[str, dict[str, Any]] = {}
+                        all_keys = set(on_disk) | set(self._data)
+                        for k in all_keys:
+                            ours = self._data.get(k, {})
+                            theirs = on_disk.get(k, {})
+                            merged[k] = {
+                                "used_requests": max(
+                                    ours.get("used_requests", 0),
+                                    theirs.get("used_requests", 0),
+                                ),
+                                "used_tokens": max(
+                                    ours.get("used_tokens", 0),
+                                    theirs.get("used_tokens", 0),
+                                ),
+                                "reset_at": ours.get("reset_at") or theirs.get("reset_at"),
+                            }
+                        self._data = merged
+                    except (json.JSONDecodeError, OSError):
+                        pass
+                # F-29A: atomic write via shared helper
+                atomic_write_json(self.storage_path, self._data, default=str)
+
+    # ── Public API ───────────────────────────────────────────────────────
+
+    def get_usage(self, provider_id: str, window: str = "daily") -> QuotaUsage:
+        self._ensure_loaded()
+        assert self._data is not None
+        key = f"{provider_id}:{window}"
+        raw = self._data.get(key, {})
+        self._maybe_reset(provider_id, window, raw)
+        raw = self._data.get(key, {})
+        return QuotaUsage(
+            provider_id=provider_id,
+            window=window,  # type: ignore[arg-type]
+            used_requests=raw.get("used_requests", 0),
+            used_tokens=raw.get("used_tokens", 0),
+            reset_at=(
+                datetime.fromisoformat(raw["reset_at"])
+                if raw.get("reset_at") else None
+            ),
+        )
+
+    def increment(
+        self,
+        provider_id: str,
+        requests: int = 1,
+        tokens: int = 0,
+        window: str = "daily",
+    ) -> QuotaUsage:
+        """Append-only: rejects negative deltas."""
+        if requests < 0 or tokens < 0:
+            raise ValueError("Cannot decrement quota usage")
+        self._ensure_loaded()
+        assert self._data is not None
+        key = f"{provider_id}:{window}"
+        if key not in self._data:
+            self._data[key] = {"used_requests": 0, "used_tokens": 0, "reset_at": None}
+        self._data[key]["used_requests"] = self._data[key].get("used_requests", 0) + requests
+        self._data[key]["used_tokens"] = self._data[key].get("used_tokens", 0) + tokens
+        self._save_locked()  # F-29A + F-29B
+        return self.get_usage(provider_id, window)
+
+    def is_exhausted(
+        self,
+        provider_id: str,
+        max_requests: int | None,
+        window: str = "daily",
+    ) -> bool:
+        if max_requests is None:
+            return False
+        usage = self.get_usage(provider_id, window)
+        return usage.used_requests >= max_requests
+
+    def set_reset_time(
+        self,
+        provider_id: str,
+        reset_at: datetime,
+        window: str = "daily",
+    ) -> None:
+        self._ensure_loaded()
+        assert self._data is not None
+        key = f"{provider_id}:{window}"
+        if key not in self._data:
+            self._data[key] = {"used_requests": 0, "used_tokens": 0}
+        self._data[key]["reset_at"] = reset_at.isoformat()
+        self._save_locked()
+
+    def reset_usage(self, provider_id: str, window: str = "daily") -> QuotaUsage:
+        """Reset counters to zero. This is intentionally not append-only."""
+        self._ensure_loaded()
+        assert self._data is not None
+        key = f"{provider_id}:{window}"
+        self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._lock_path, "a+") as lock_fh:
+            with _file_lock(lock_fh):
+                if self.storage_path.exists():
+                    try:
+                        self._data = json.loads(self.storage_path.read_text(encoding="utf-8"))
+                    except (json.JSONDecodeError, OSError):
+                        self._data = {}
+                self._data[key] = {
+                    "used_requests": 0,
+                    "used_tokens": 0,
+                    "reset_at": None,
+                }
+                atomic_write_json(self.storage_path, self._data, default=str)
+        return self.get_usage(provider_id, window)
+
+    def all_usage(self) -> dict[str, QuotaUsage]:
+        self._ensure_loaded()
+        assert self._data is not None
+        result: dict[str, QuotaUsage] = {}
+        for key in self._data:
+            parts = key.split(":", 1)
+            if len(parts) == 2:
+                provider_id, window = parts
+                result[key] = self.get_usage(provider_id, window)
+        return result
+
+    # ── Private ──────────────────────────────────────────────────────────
+
+    def _maybe_reset(self, provider_id: str, window: str, raw: dict[str, Any]) -> None:
+        reset_at_str = raw.get("reset_at")
+        if not reset_at_str:
+            return
+        try:
+            reset_at = datetime.fromisoformat(reset_at_str)
+            if reset_at.tzinfo is None:
+                reset_at = reset_at.replace(tzinfo=timezone.utc)
+            now = datetime.now(tz=timezone.utc)
+            if now >= reset_at:
+                key = f"{provider_id}:{window}"
+                assert self._data is not None
+                self._data[key] = {
+                    "used_requests": 0,
+                    "used_tokens": 0,
+                    "reset_at": None,
+                }
+                self._save_locked()
+        except (ValueError, TypeError):
+            pass
+
+
+__all__ = ["QuotaTracker"]

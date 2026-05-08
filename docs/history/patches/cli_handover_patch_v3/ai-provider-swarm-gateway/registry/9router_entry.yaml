@@ -1,0 +1,23 @@
+# Append the entry below to the `providers:` list inside
+# src/ai_provider_swarm_gateway/registry/providers.yaml
+#
+# Use the schema shape your local registry already follows; the keys below
+# match the upstream `{providers: [...]}` shape your tree uses today.
+#
+# After appending, verify:
+#   .venv/bin/ai-provider-gateway providers list | grep 9router
+
+- provider_id: 9router
+  provider_name: 9Router (local OpenAI-compatible)
+  capabilities: [chat, code]
+  is_local: true
+  quota:
+    free_daily_usage: "unlimited (local)"
+    confidence: verified
+  metadata:
+    base_url_env: AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL
+    model_env: AI_PROVIDER_GATEWAY_9ROUTER_MODEL
+    api_key_env: AI_PROVIDER_GATEWAY_9ROUTER_API_KEY
+    notes: >-
+      OpenAI-compatible router endpoint. Returns JSON followed by a trailing
+      `data: [DONE]` SSE-style sentinel; adapter strips it before parsing.

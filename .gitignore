@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+*.whl
+*.tar.gz
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+uv.lock.bak
+
+# pytest
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ruff / mypy / pyright
+.ruff_cache/
+.mypy_cache/
+pyrightconfig.json
+
+# mkdocs
+site/
+
+# IDE
+.idea/
+*.iml
+.vscode/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit these
+.env
+*.env
+.env.*
+*_secrets.*
+*_secret.*
+secrets/
+
+# Local scratch
+/tmp/
+scratch/
+*.local.py

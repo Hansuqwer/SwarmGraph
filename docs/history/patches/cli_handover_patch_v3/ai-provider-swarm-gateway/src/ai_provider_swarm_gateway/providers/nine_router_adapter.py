@@ -1,0 +1,361 @@
+"""9Router adapter — OpenAI-compatible local router (kilo-auto / free).
+
+Drop-in adapter for the patched `ai-provider-swarm-gateway`.
+Reads config from env vars (with aliases), POSTs OpenAI-shape requests to
+the 9router /chat/completions endpoint, and tolerates the response quirk
+where the JSON body is followed by ``data: [DONE]``.
+
+Env vars (first non-empty wins for each):
+  AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL   default: http://localhost:20128/v1
+  AI_PROVIDER_GATEWAY_9ROUTER_MODEL      default: kc/kilo-auto/free
+  AI_PROVIDER_GATEWAY_9ROUTER_API_KEY    aliases: ROUTER_API_KEY, NINEROUTER_API_KEY,
+                                                  KILO_CODE_API_KEY, OPENAI_API_KEY
+
+Zero third-party HTTP deps: uses urllib.request from stdlib so the adapter
+loads even on minimal installs. If httpx is already in the env it is NOT
+used (kept simple + deterministic for tests).
+
+ABC compatibility: this class subclasses the upstream ProviderAdapter ABC
+when importable, otherwise falls back to a duck-typed base. It implements
+the broadest set of method names the upstream codebase has used across
+versions (`chat`, `chat_completion`, `complete`, `call`, `invoke`) so the
+9-node graph's `provider_call_node` will find a working entry point
+regardless of which name it dispatches to.
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass
+from typing import Any, Iterable, Mapping
+
+# ── Defensive ABC import ──────────────────────────────────────────────────
+
+try:
+    from .base import ProviderAdapter as _BaseProviderAdapter  # type: ignore
+    _HAS_UPSTREAM_BASE = True
+except Exception:  # pragma: no cover
+    _HAS_UPSTREAM_BASE = False
+
+    class _BaseProviderAdapter:  # type: ignore[no-redef]
+        """Fallback base if upstream `providers.base.ProviderAdapter` is missing."""
+        provider_id: str = ""
+
+        def is_configured(self) -> bool:  # noqa: D401
+            return False
+
+
+# ── Constants ─────────────────────────────────────────────────────────────
+
+PROVIDER_ID = "9router"
+DEFAULT_BASE_URL = "http://localhost:20128/v1"
+DEFAULT_MODEL = "kc/kilo-auto/free"
+DEFAULT_TIMEOUT_SECONDS = 60.0
+
+_API_KEY_ENV_ALIASES = (
+    "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+    "ROUTER_API_KEY",
+    "NINEROUTER_API_KEY",
+    "KILO_CODE_API_KEY",
+    "OPENAI_API_KEY",
+)
+
+
+# ── Response value object ────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class NineRouterResponse:
+    """Normalised response from 9router. Loose duck-typed shape so the
+    upstream `provider_call_node` / `response_validation_node` can consume it
+    without knowing the exact upstream `ProviderResponse` model."""
+    content: str
+    model_actually_used: str
+    finish_reason: str
+    raw: dict[str, Any]
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: int = 0
+
+    # Common attribute aliases the upstream graph might look for
+    @property
+    def text(self) -> str:
+        return self.content
+
+    @property
+    def message(self) -> str:
+        return self.content
+
+    @property
+    def output(self) -> str:
+        return self.content
+
+
+# ── Helpers (parser quirk) ────────────────────────────────────────────────
+
+def _resolve_api_key(explicit: str | None = None) -> str | None:
+    if explicit:
+        return explicit
+    for env_name in _API_KEY_ENV_ALIASES:
+        v = os.environ.get(env_name)
+        if v:
+            return v
+    return None
+
+
+def _parse_quirky_body(body: str) -> dict[str, Any]:
+    """Strip the trailing ``data: [DONE]`` (or ``data: ...``) sentinel and
+    return the parsed JSON object.
+
+    9router currently returns a single JSON object followed by an SSE-style
+    ``data: [DONE]`` line. Standard json.loads chokes on the trailing text;
+    this splitter extracts only the JSON portion.
+    """
+    if not body:
+        raise ValueError("empty response body")
+    # Find the last brace before any 'data:' marker (cover edge cases where
+    # the body might contain 'data:' inside a string field).
+    if "data:" in body:
+        json_part = body.split("\ndata:", 1)[0]
+        # If split didn't help (no preceding newline), fall back to first 'data:'
+        if json_part == body:
+            json_part = body.split("data:", 1)[0]
+        json_part = json_part.strip()
+    else:
+        json_part = body.strip()
+    if not json_part:
+        raise ValueError("no JSON content before sentinel")
+    return json.loads(json_part)
+
+
+def _extract_content(data: dict[str, Any]) -> tuple[str, str]:
+    """Return (content, finish_reason). Three-level fallback:
+
+    1. choices[0].message.content
+    2. choices[0].message.reasoning   (some models stream reasoning only)
+    3. choices[0].text                (legacy completion shape)
+
+    Raises ValueError if no content can be located.
+    """
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("response had no 'choices' array")
+    choice = choices[0]
+    finish_reason = str(choice.get("finish_reason") or "")
+
+    msg = choice.get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, str) and content.strip():
+        return content, finish_reason
+
+    reasoning = msg.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning, finish_reason or "reasoning_only"
+
+    legacy_text = choice.get("text")
+    if isinstance(legacy_text, str) and legacy_text.strip():
+        return legacy_text, finish_reason or "legacy_text"
+
+    raise ValueError(
+        "9router response had no usable content "
+        "(message.content / message.reasoning / text all empty)"
+    )
+
+
+def _normalise_messages(
+    messages_or_prompt: str | Iterable[Mapping[str, Any]] | None,
+    *,
+    fallback_prompt: str | None = None,
+) -> list[dict[str, Any]]:
+    """Accept either a list[{role, content}] OR a bare prompt string."""
+    if messages_or_prompt is None:
+        if fallback_prompt is None:
+            raise ValueError("Provide messages= or prompt=")
+        return [{"role": "user", "content": fallback_prompt}]
+    if isinstance(messages_or_prompt, str):
+        return [{"role": "user", "content": messages_or_prompt}]
+    out: list[dict[str, Any]] = []
+    for m in messages_or_prompt:
+        if not isinstance(m, Mapping):
+            raise TypeError(f"message must be a mapping, got {type(m).__name__}")
+        role = str(m.get("role") or "user")
+        content = str(m.get("content") or "")
+        out.append({"role": role, "content": content})
+    if not out:
+        raise ValueError("messages list was empty")
+    return out
+
+
+# ── HTTP transport (stdlib; injectable for tests) ────────────────────────
+
+class _HttpClient:
+    """Minimal HTTP client over urllib.request. Tests inject a fake."""
+
+    def post_json(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        *,
+        api_key: str,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> tuple[int, str, dict[str, str]]:
+        body = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json, text/event-stream;q=0.9",
+        }
+        if extra_headers:
+            headers.update(dict(extra_headers))
+        req = urllib.request.Request(url=url, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+                resp_headers = {k.lower(): v for k, v in resp.headers.items()}
+                return resp.status, raw, resp_headers
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            return e.code, raw, {k.lower(): v for k, v in (e.headers or {}).items()}
+        except urllib.error.URLError as e:
+            raise ConnectionError(f"9router unreachable at {url}: {e.reason}") from e
+
+
+# ── The adapter ───────────────────────────────────────────────────────────
+
+class NineRouterAdapter(_BaseProviderAdapter):
+    """OpenAI-compatible adapter for the local 9router."""
+
+    provider_id: str = PROVIDER_ID
+    name: str = "9Router (local OpenAI-compatible)"
+
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        timeout_seconds: float | None = None,
+        http_client: _HttpClient | None = None,
+    ) -> None:
+        self.base_url = (base_url or os.environ.get(
+            "AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", DEFAULT_BASE_URL
+        )).rstrip("/")
+        self.model = model or os.environ.get(
+            "AI_PROVIDER_GATEWAY_9ROUTER_MODEL", DEFAULT_MODEL
+        )
+        self._explicit_api_key = api_key
+        self.timeout_seconds = float(
+            timeout_seconds
+            or os.environ.get("AI_PROVIDER_GATEWAY_9ROUTER_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)
+        )
+        self._http = http_client or _HttpClient()
+
+    # ── ABC surface ───────────────────────────────────────────────────────
+
+    def is_configured(self) -> bool:
+        return bool(_resolve_api_key(self._explicit_api_key))
+
+    @property
+    def model_id(self) -> str:
+        return self.model
+
+    @property
+    def endpoint(self) -> str:
+        return f"{self.base_url}/chat/completions"
+
+    # ── The actual call (multiple aliases for graph-version drift) ───────
+
+    def chat(
+        self,
+        messages: str | Iterable[Mapping[str, Any]] | None = None,
+        *,
+        prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int = 512,
+        temperature: float = 0.0,
+        extra_payload: Mapping[str, Any] | None = None,
+    ) -> NineRouterResponse:
+        api_key = _resolve_api_key(self._explicit_api_key)
+        if not api_key:
+            raise PermissionError(
+                "9router adapter has no API key. Set one of: "
+                + ", ".join(_API_KEY_ENV_ALIASES)
+            )
+
+        norm_messages = _normalise_messages(messages, fallback_prompt=prompt)
+        payload: dict[str, Any] = {
+            "model": model or self.model,
+            "messages": norm_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        if extra_payload:
+            payload.update(dict(extra_payload))
+
+        t0 = time.monotonic()
+        status, raw_body, _headers = self._http.post_json(
+            self.endpoint,
+            payload,
+            api_key=api_key,
+            timeout=self.timeout_seconds,
+        )
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+        if status >= 400:
+            # Surface upstream error verbatim (truncated)
+            preview = (raw_body or "")[:500]
+            raise RuntimeError(
+                f"9router HTTP {status} at {self.endpoint}: {preview}"
+            )
+
+        data = _parse_quirky_body(raw_body)
+        content, finish_reason = _extract_content(data)
+        usage = data.get("usage") or {}
+
+        return NineRouterResponse(
+            content=content,
+            model_actually_used=str(data.get("model") or payload["model"]),
+            finish_reason=finish_reason,
+            raw=data,
+            input_tokens=int(usage.get("prompt_tokens") or 0),
+            output_tokens=int(usage.get("completion_tokens") or 0),
+            latency_ms=elapsed_ms,
+        )
+
+    # ── Aliases for upstream `provider_call_node` dispatch variants ──────
+
+    def chat_completion(self, *args: Any, **kwargs: Any) -> NineRouterResponse:
+        return self.chat(*args, **kwargs)
+
+    def complete(self, *args: Any, **kwargs: Any) -> NineRouterResponse:
+        return self.chat(*args, **kwargs)
+
+    def call(self, *args: Any, **kwargs: Any) -> NineRouterResponse:
+        return self.chat(*args, **kwargs)
+
+    def invoke(self, *args: Any, **kwargs: Any) -> NineRouterResponse:
+        return self.chat(*args, **kwargs)
+
+    # ── Optional capability hooks ────────────────────────────────────────
+
+    def supports(self, capability: str) -> bool:
+        # 9router (kilo-auto) currently routes for chat + code via the same endpoint
+        return capability in ("chat", "code")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"NineRouterAdapter(base_url={self.base_url!r}, model={self.model!r})"
+
+
+__all__ = [
+    "PROVIDER_ID",
+    "DEFAULT_BASE_URL",
+    "DEFAULT_MODEL",
+    "NineRouterAdapter",
+    "NineRouterResponse",
+    "_parse_quirky_body",
+    "_extract_content",
+    "_resolve_api_key",
+]

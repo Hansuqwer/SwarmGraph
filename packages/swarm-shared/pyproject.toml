@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "swarm-shared"
+version = "0.1.0"
+description = "Shared primitives for hive-swarm / ai-coder-hardening / ai-provider-swarm-gateway"
+requires-python = ">=3.11,<3.14"
+dependencies = ["pydantic>=2.7,<3"]
+
+[project.optional-dependencies]
+langgraph = ["langgraph-checkpoint>=2.0,<3"]
+dev = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
+    "hypothesis>=6.110",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short --strict-markers"
+asyncio_mode = "auto"
+
+[tool.hatch.build.targets.wheel]
+packages = ["swarm_shared"]

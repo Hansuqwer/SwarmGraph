@@ -1,0 +1,28 @@
+name: Security
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday 06:00 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Secret scan (committed files)
+        run: |
+          git log -1 --format='%H' | xargs git show --stat
+          git diff HEAD~1 HEAD -- '*.py' '*.md' '*.yaml' '*.yml' '*.json' '*.toml' \
+            | grep -iE 'sk-[a-z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|Bearer [a-zA-Z0-9]{20,}' \
+            && echo "::error::Potential secret detected in diff" && exit 1 \
+            || echo "Secret scan: clean"
