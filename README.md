@@ -1,1 +1,2 @@
+<img width="1254" height="1254" alt="2deb2d6e-7bac-4515-ba0f-efb0096fdbb0" src="https://github.com/user-attachments/assets/b0334094-e35c-4e1c-888b-40650eb10741" />
 SwarmGraph is an open-source Python framework for building type-safe AI agent swarms. It combines Pydantic schemas, LangGraph workflows, and swarm-style orchestration so small, specialized agents can collaborate through structured execution paths using free and open AI providers.
