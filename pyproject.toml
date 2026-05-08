@@ -8,7 +8,7 @@ readme = "README.md"
 dependencies = [
     "swarm-shared[s3]",
     "hive-swarm[langgraph]",
-    "ai-provider-swarm-gateway[yaml,langgraph,tui]",
+    "ai-provider-swarm-gateway[yaml,langgraph,tui,vault]",
 ]
 
 [tool.uv.workspace]
