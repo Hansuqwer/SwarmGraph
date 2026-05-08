@@ -42,6 +42,7 @@ def _get_adapter(provider_id: str) -> ProviderAdapter:
     from ..providers.anthropic_adapter  import AnthropicAdapter
     from ..providers.google_adapter     import GoogleAdapter
     from ..providers.groq_adapter       import GroqAdapter
+    from ..providers.grok_adapter       import GrokAdapter
     from ..providers.deepseek_adapter   import DeepSeekAdapter
     from ..providers.qwen_adapter       import QwenAdapter
     from ..providers.glm_adapter        import GLMAdapter
@@ -54,6 +55,7 @@ def _get_adapter(provider_id: str) -> ProviderAdapter:
         "anthropic":            AnthropicAdapter(),
         "google_gemini":        GoogleAdapter(),
         "groq":                 GroqAdapter(),
+        "grok":                 GrokAdapter(),
         "deepseek":             DeepSeekAdapter(),
         "qwen":                 QwenAdapter(),
         "zhipu_glm":            GLMAdapter(),

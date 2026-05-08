@@ -89,6 +89,40 @@ providers:
     last_verified: "2026-05-07"
     is_local: false
 
+  - provider_id: grok
+    provider_name: "xAI Grok"
+    website_url: "https://x.ai"
+    signup_url: "https://console.x.ai"
+    signin_url: "https://console.x.ai"
+    api_docs_url: "https://docs.x.ai"
+    dashboard_url: "https://console.x.ai"
+    models_url: "https://docs.x.ai/docs/models"
+    auth_methods: [api_key]
+    official_sdk: ["openai-compatible"]
+    supported_models:
+      - "grok-2-latest"
+      - "grok-3-latest"
+    capabilities: [chat, code, tools]
+    quota:
+      free_daily_usage: null
+      free_monthly_usage: null
+      trial_credits: null
+      requires_payment_method: null
+      api_access_available: true
+      web_only_free_access: false
+      rate_limits: null
+      quota_reset_policy: null
+      confidence: unknown
+      notes:
+        - "API access requires an xAI account and key. Free quota not assumed."
+    terms_url: "https://x.ai/legal/terms-of-service"
+    policy_notes:
+      - "API automation permitted only under xAI API terms."
+    source_links:
+      - "https://docs.x.ai"
+    last_verified: "2026-05-09"
+    is_local: false
+
   - provider_id: mistral
     provider_name: "Mistral AI"
     website_url: "https://mistral.ai"
