@@ -9,9 +9,13 @@ A Pydantic-strict, voting-based, audit-first LangGraph runtime for regulated or 
 SwarmGraph is not an OpenAI-Swarm-style handoff framework. It is a Pydantic-strict, voting-based, audit-first LangGraph runtime for parallel agent deliberation, consensus, HITL approval, and signed execution records.
 
 
-**Type-safe AI agent swarms with Pydantic v2, LangGraph, and a multi-provider gateway.**
+If you need…	Use
+Tool-call handoff between conversational specialists	langgraph-swarm / raw LangGraph
+Sequential agent relay with active-agent memory	langgraph-swarm
+Typed fan-out, votes, consensus, HITL, audit chain	SwarmGraph
+Simple single-agent chatbot	Not SwarmGraph
+Heavy tool-use agent framework	Raw LangGraph / LangChain Agents / CrewAI-style framework
 
-SwarmGraph lets you compose small, specialised agents into collaborative swarms that reach consensus, validate every message with Pydantic schemas, and route LLM calls through a provider-agnostic gateway — all locally, with free or commercial models.
 
 ---
 
