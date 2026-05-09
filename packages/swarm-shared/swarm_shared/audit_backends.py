@@ -22,6 +22,7 @@ class AuditBackend(Protocol):
         self,
         swarm_id: str,
         *,
+        tenant_id: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[AuditRecord]: ...
@@ -68,11 +69,13 @@ def _filter_records_by_date(
 
 def _date_from_key(key: str, prefix: str) -> date | None:
     rel = key[len(prefix) :].lstrip("/") if key.startswith(prefix) else key
-    day = rel.split("/", 1)[0] if rel else ""
-    try:
-        return _parse_day(day, name="partition date")
-    except ValueError:
-        return None
+    parts = rel.split("/") if rel else []
+    for part in parts:
+        try:
+            return _parse_day(part, name="partition date")
+        except ValueError:
+            continue
+    return None
 
 
 class JSONLBackend:
@@ -88,12 +91,18 @@ class JSONLBackend:
         self,
         swarm_id: str,
         *,
+        tenant_id: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[AuditRecord]:
         if not swarm_id:
             raise ValueError("swarm_id is required")
-        records = [record for record in load_jsonl_chain(self.path) if record.swarm_id == swarm_id]
+        records = [
+            record
+            for record in load_jsonl_chain(self.path)
+            if record.swarm_id == swarm_id
+            and (tenant_id is None or record.tenant_id == tenant_id)
+        ]
         return _filter_records_by_date(records, start_date=start_date, end_date=end_date)
 
 
@@ -113,6 +122,7 @@ class S3AuditBackend:
         region: str | None = None,
         max_workers: int = 8,
         client: Any | None = None,
+        legacy_layout: bool = False,
     ) -> None:
         if not bucket or "/" in bucket:
             raise ValueError("bucket must be a non-empty S3 bucket name")
@@ -123,6 +133,7 @@ class S3AuditBackend:
         self.region = region
         self.max_workers = max_workers
         self._client = client
+        self.legacy_layout = legacy_layout
 
     def _get_client(self) -> Any:
         if self._client is not None:
@@ -138,6 +149,8 @@ class S3AuditBackend:
 
     def _key_for_record(self, record: AuditRecord) -> str:
         day = datetime.fromtimestamp(record.timestamp, tz=UTC).strftime("%Y-%m-%d")
+        if record.tenant_id and not self.legacy_layout:
+            return f"{self.prefix}/{record.tenant_id}/{day}/{record.swarm_id}.jsonl"
         return f"{self.prefix}/{day}/{record.swarm_id}.jsonl"
 
     def _is_not_found(self, error: Exception) -> bool:
@@ -203,11 +216,14 @@ class S3AuditBackend:
         self,
         swarm_id: str,
         *,
+        tenant_id: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[AuditRecord]:
         if not swarm_id:
             raise ValueError("swarm_id is required")
+        if tenant_id is None and not self.legacy_layout:
+            raise ValueError("tenant_id is required for S3 audit load unless legacy_layout=True")
         start = _parse_day(start_date, name="start_date")
         end = _parse_day(end_date, name="end_date")
         if start is not None and end is not None and start > end:
@@ -215,7 +231,8 @@ class S3AuditBackend:
         client = self._get_client()
         keys: list[str] = []
         paginator = client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=self.bucket, Prefix=f"{self.prefix}/"):
+        list_prefix = f"{self.prefix}/{tenant_id}/" if tenant_id else f"{self.prefix}/"
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=list_prefix):
             for obj in page.get("Contents", []):
                 key = str(obj.get("Key", ""))
                 if not key.endswith(f"/{swarm_id}.jsonl"):

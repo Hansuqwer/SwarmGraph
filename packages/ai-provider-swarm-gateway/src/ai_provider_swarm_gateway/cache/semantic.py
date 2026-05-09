@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -13,6 +14,19 @@ from swarm_shared.hashing import full_sha256
 
 _DEFAULT_BASE = Path.home() / ".ai_provider_gateway"
 DEFAULT_CACHE_PATH = _DEFAULT_BASE / "semantic_cache.db"
+_TENANT_ENV = "AI_PROVIDER_GATEWAY_TENANT"
+_SHARED_MODE_ENV = "AI_PROVIDER_GATEWAY_CACHE_SHARED_MODE"
+
+
+def _default_cache_path() -> Path:
+    tenant_id = os.environ.get(_TENANT_ENV, "").strip()
+    if tenant_id:
+        return _DEFAULT_BASE / "tenants" / tenant_id / "semantic_cache.db"
+    return DEFAULT_CACHE_PATH
+
+
+def _shared_mode_enabled() -> bool:
+    return os.environ.get(_SHARED_MODE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -44,7 +58,7 @@ class SemanticCache:
             raise ValueError("similarity_threshold must be between -1 and 1")
         if vector_scan_limit < 1:
             raise ValueError("vector_scan_limit must be >= 1")
-        self.db_path = Path(db_path or DEFAULT_CACHE_PATH)
+        self.db_path = Path(db_path or _default_cache_path())
         self.similarity_threshold = similarity_threshold
         self.vector_scan_limit = vector_scan_limit
         self._init_db()
@@ -56,6 +70,7 @@ class SemanticCache:
                 """
                 CREATE TABLE IF NOT EXISTS cache_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tenant_id TEXT NOT NULL DEFAULT '',
                     prompt_hash TEXT NOT NULL,
                     prompt TEXT NOT NULL,
                     embedding_json TEXT,
@@ -64,34 +79,81 @@ class SemanticCache:
                     model_id TEXT NOT NULL,
                     created_at REAL NOT NULL,
                     expires_at REAL,
-                    UNIQUE(prompt_hash, provider_id, model_id)
+                    UNIQUE(tenant_id, prompt_hash, provider_id, model_id)
                 )
                 """
             )
+            migrated = self._migrate_schema(conn)
+            if migrated:
+                conn.execute("DROP INDEX IF EXISTS idx_cache_scope")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_cache_scope "
-                "ON cache_entries(provider_id, model_id, expires_at, created_at)"
+                "ON cache_entries(tenant_id, provider_id, model_id, expires_at, created_at)"
             )
+
+    def _migrate_schema(self, conn: sqlite3.Connection) -> bool:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(cache_entries)")}
+        if "tenant_id" in columns:
+            return False
+        conn.execute("DROP TABLE IF EXISTS cache_entries_new")
+        conn.execute(
+            """
+            CREATE TABLE cache_entries_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id TEXT NOT NULL DEFAULT '',
+                prompt_hash TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                embedding_json TEXT,
+                response_json TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                expires_at REAL,
+                UNIQUE(tenant_id, prompt_hash, provider_id, model_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO cache_entries_new (
+                prompt_hash, prompt, embedding_json, response_json,
+                provider_id, model_id, created_at, expires_at
+            )
+            SELECT prompt_hash, prompt, embedding_json, response_json,
+                   provider_id, model_id, created_at, expires_at
+            FROM cache_entries
+            """
+        )
+        conn.execute("DROP TABLE cache_entries")
+        conn.execute("ALTER TABLE cache_entries_new RENAME TO cache_entries")
+        return True
+
+    def _tenant_id(self, tenant_id: str) -> str:
+        if _shared_mode_enabled() and not tenant_id:
+            raise ValueError("tenant_id is required when AI_PROVIDER_GATEWAY_CACHE_SHARED_MODE is enabled")
+        return tenant_id
 
     def get(
         self,
         prompt: str,
         *,
+        tenant_id: str = "",
         provider_id: str,
         model_id: str,
         embedding: list[float] | None = None,
     ) -> str | None:
         now = time.time()
+        tenant_id = self._tenant_id(tenant_id)
         prompt_hash = full_sha256(prompt)
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 """
                 SELECT response_json FROM cache_entries
-                WHERE prompt_hash = ? AND provider_id = ? AND model_id = ?
+                WHERE tenant_id = ? AND prompt_hash = ? AND provider_id = ? AND model_id = ?
                   AND (expires_at IS NULL OR expires_at > ?)
                 """,
-                (prompt_hash, provider_id, model_id, now),
+                (tenant_id, prompt_hash, provider_id, model_id, now),
             ).fetchone()
             if row is not None:
                 return str(row["response_json"])
@@ -102,13 +164,13 @@ class SemanticCache:
             rows = conn.execute(
                 """
                 SELECT embedding_json, response_json FROM cache_entries
-                WHERE provider_id = ? AND model_id = ?
+                WHERE tenant_id = ? AND provider_id = ? AND model_id = ?
                   AND embedding_json IS NOT NULL
                   AND (expires_at IS NULL OR expires_at > ?)
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
-                (provider_id, model_id, now, self.vector_scan_limit),
+                (tenant_id, provider_id, model_id, now, self.vector_scan_limit),
             ).fetchall()
 
         for row in rows:
@@ -128,12 +190,14 @@ class SemanticCache:
         prompt: str,
         response_json: str | dict[str, Any],
         *,
+        tenant_id: str = "",
         provider_id: str,
         model_id: str,
         embedding: list[float] | None = None,
         ttl_seconds: int | None = 86_400,
     ) -> None:
         now = time.time()
+        tenant_id = self._tenant_id(tenant_id)
         expires_at = None if ttl_seconds is None else now + ttl_seconds
         if isinstance(response_json, str):
             response_payload = response_json
@@ -144,10 +208,10 @@ class SemanticCache:
             conn.execute(
                 """
                 INSERT INTO cache_entries (
-                    prompt_hash, prompt, embedding_json, response_json,
+                    tenant_id, prompt_hash, prompt, embedding_json, response_json,
                     provider_id, model_id, created_at, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(prompt_hash, provider_id, model_id) DO UPDATE SET
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(tenant_id, prompt_hash, provider_id, model_id) DO UPDATE SET
                     prompt = excluded.prompt,
                     embedding_json = excluded.embedding_json,
                     response_json = excluded.response_json,
@@ -155,6 +219,7 @@ class SemanticCache:
                     expires_at = excluded.expires_at
                 """,
                 (
+                    tenant_id,
                     full_sha256(prompt),
                     prompt,
                     embedding_json,

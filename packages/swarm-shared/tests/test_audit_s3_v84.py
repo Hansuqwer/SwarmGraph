@@ -84,6 +84,7 @@ def _record(
     seq: int,
     *,
     swarm_id: str = "s1",
+    tenant_id: str = "",
     prev_hash: str = GENESIS_PREV_HASH,
     day: int = 8,
 ) -> AuditRecord:
@@ -94,13 +95,14 @@ def _record(
         payload={"i": seq},
         prev_hash=prev_hash,
         secret=SECRET,
+        tenant_id=tenant_id,
         timestamp=datetime(2026, 5, day, tzinfo=UTC).timestamp(),
     )
 
 
 def test_s3_backend_appends_new_partitioned_object():
     client = _FakeS3Client()
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     backend.append(_record(0))
 
@@ -112,7 +114,7 @@ def test_s3_backend_retries_on_precondition_failure():
     client = _FakeS3Client()
     key = ("audit-bucket", "audit/2026-05-08/s1.jsonl")
     client.fail_first_put.add(key)
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     backend.append(_record(0))
 
@@ -121,7 +123,7 @@ def test_s3_backend_retries_on_precondition_failure():
 
 def test_s3_backend_uses_conditional_create_on_missing_object():
     client = _FakeS3Client()
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     backend.append(_record(0))
 
@@ -141,7 +143,7 @@ def test_s3_backend_rejects_when_missing_key_create_races_with_duplicate_genesis
             return super().put_object(**kwargs)
 
     client = _RacingCreateS3Client()
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     with pytest.raises(Exception, match="append boundary mismatch"):
         backend.append(_record(0))
@@ -154,7 +156,7 @@ def test_s3_backend_rejects_when_missing_key_create_races_with_duplicate_genesis
 
 def test_s3_backend_rejects_duplicate_genesis_on_existing_object():
     client = _FakeS3Client()
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
     first = _record(0)
     backend.append(first)
 
@@ -179,7 +181,7 @@ def test_s3_backend_loads_all_partitions_for_swarm_in_sequence_order():
         other.model_dump_json() + "\n",
         "etag-3",
     )
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     records = backend.load("s1")
 
@@ -204,6 +206,20 @@ def test_jsonl_backend_loads_by_swarm_and_date_range(tmp_path):
     assert verify_chain(backend.load("s1"), secret=SECRET) == 2
 
 
+def test_jsonl_backend_load_filters_by_tenant(tmp_path):
+    path = tmp_path / "audit.jsonl"
+    backend = JSONLBackend(path)
+    first = _record(0, tenant_id="tenant-a")
+    second = _record(0, tenant_id="tenant-b")
+
+    path.write_text(first.to_jsonl_line() + second.to_jsonl_line(), encoding="utf-8")
+
+    assert [record.tenant_id for record in backend.load("s1")] == ["tenant-a", "tenant-b"]
+    assert [record.tenant_id for record in backend.load("s1", tenant_id="tenant-a")] == [
+        "tenant-a"
+    ]
+
+
 def test_audit_backend_date_range_rejects_invalid_dates(tmp_path):
     backend = JSONLBackend(tmp_path / "audit.jsonl")
     backend.append(_record(0))
@@ -226,11 +242,46 @@ def test_s3_backend_load_filters_date_partitions():
         second.model_dump_json() + "\n",
         "etag-2",
     )
-    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    backend = S3AuditBackend(bucket="audit-bucket", client=client, legacy_layout=True)
 
     records = backend.load("s1", start_date="2026-05-08", end_date="2026-05-08")
 
     assert [record.sequence for record in records] == [1]
+
+
+def test_s3_backend_key_includes_tenant_when_set():
+    client = _FakeS3Client()
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+
+    backend.append(_record(0, tenant_id="tenant-a"))
+
+    assert ("audit-bucket", "audit/tenant-a/2026-05-08/s1.jsonl") in client.objects
+
+
+def test_s3_backend_load_requires_tenant_unless_legacy_layout():
+    backend = S3AuditBackend(bucket="audit-bucket", client=_FakeS3Client())
+
+    with pytest.raises(ValueError, match="tenant_id is required"):
+        backend.load("s1")
+
+
+def test_s3_backend_load_lists_only_tenant_prefix():
+    client = _FakeS3Client()
+    first = _record(0, tenant_id="tenant-a")
+    second = _record(0, tenant_id="tenant-b")
+    client.objects[("audit-bucket", "audit/tenant-a/2026-05-08/s1.jsonl")] = (
+        first.model_dump_json() + "\n",
+        "etag-1",
+    )
+    client.objects[("audit-bucket", "audit/tenant-b/2026-05-08/s1.jsonl")] = (
+        second.model_dump_json() + "\n",
+        "etag-2",
+    )
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+
+    records = backend.load("s1", tenant_id="tenant-a")
+
+    assert [record.tenant_id for record in records] == ["tenant-a"]
 
 
 def test_s3_backend_restore_archive_requests_matching_swarm_objects():
