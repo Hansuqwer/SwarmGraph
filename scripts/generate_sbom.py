@@ -28,7 +28,15 @@ def _component_from_package(package: dict[str, Any]) -> dict[str, Any]:
     return component
 
 
-def build_sbom(lock_path: Path) -> dict[str, Any]:
+def _read_project_version(pyproject_path: Path) -> str:
+    data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    project = data.get("project")
+    if not isinstance(project, dict) or not isinstance(project.get("version"), str):
+        raise ValueError(f"No [project].version found in {pyproject_path}")
+    return project["version"]
+
+
+def build_sbom(lock_path: Path, root_version: str) -> dict[str, Any]:
     data = tomllib.loads(lock_path.read_text(encoding="utf-8"))
     packages = data.get("package") or []
     if not isinstance(packages, list):
@@ -47,7 +55,7 @@ def build_sbom(lock_path: Path) -> dict[str, Any]:
             "component": {
                 "type": "application",
                 "name": "swarmgraph",
-                "version": "0.8.0",
+                "version": root_version,
             },
             "tools": [
                 {
@@ -60,10 +68,10 @@ def build_sbom(lock_path: Path) -> dict[str, Any]:
     }
 
 
-def write_sbom(lock_path: Path, output_path: Path) -> None:
+def write_sbom(lock_path: Path, output_path: Path, root_version: str) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(build_sbom(lock_path), indent=2, sort_keys=True) + "\n",
+        json.dumps(build_sbom(lock_path, root_version), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
@@ -72,8 +80,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lock", type=Path, default=Path("uv.lock"))
     parser.add_argument("--output", type=Path, default=Path("dist/sbom.cyclonedx.json"))
+    parser.add_argument("--root-version")
+    parser.add_argument(
+        "--root-pyproject",
+        type=Path,
+        default=Path("packages/ai-provider-swarm-gateway/pyproject.toml"),
+    )
     args = parser.parse_args()
-    write_sbom(args.lock, args.output)
+    root_version = args.root_version or _read_project_version(args.root_pyproject)
+    write_sbom(args.lock, args.output, root_version)
 
 
 if __name__ == "__main__":
