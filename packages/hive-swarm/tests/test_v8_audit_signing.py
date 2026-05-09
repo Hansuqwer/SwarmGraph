@@ -176,7 +176,7 @@ def test_audit_jsonl_append_failure_can_fail_closed(audit_env, monkeypatch, tmp_
     from swarm.models.config import SwarmConfig
     from swarm.models.state import SwarmState
 
-    def fail_append(path, record):
+    def fail_append(path, record, *, fsync=False):
         raise OSError("disk full")
 
     monkeypatch.setattr(audit_helper, "append_jsonl", fail_append)
@@ -196,6 +196,32 @@ def test_audit_jsonl_append_failure_can_fail_closed(audit_env, monkeypatch, tmp_
     assert len(state.audit_records) == 1
     assert state.audit_sequence == 1
     assert state.errors
+
+
+def test_audit_jsonl_append_uses_fsync_flag(audit_env, monkeypatch, tmp_path: Path):
+    import swarm._audit_helper as audit_helper
+    from swarm.models.config import SwarmConfig
+    from swarm.models.state import SwarmState
+
+    calls: list[bool] = []
+
+    def capture_append(path, record, *, fsync=False):
+        calls.append(fsync)
+
+    monkeypatch.setattr(audit_helper, "append_jsonl", capture_append)
+    state = SwarmState(
+        swarm_id="s1",
+        objective="x",
+        config=SwarmConfig(
+            audit_signing_enabled=True,
+            audit_fsync_enabled=True,
+            audit_log_path=str(tmp_path / "audit.jsonl"),
+        ),
+    )
+
+    audit_helper.sign_and_record(state, "consensus_result", {"i": 1})
+
+    assert calls == [True]
 
 
 def test_collect_results_output_preview_uses_uncorrupted_stream_text(audit_env):

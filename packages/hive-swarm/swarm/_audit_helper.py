@@ -103,7 +103,11 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
         from pathlib import Path
 
         try:
-            append_jsonl(Path(log_path_str), record)
+            append_jsonl(
+                Path(log_path_str),
+                record,
+                fsync=getattr(state.config, "audit_fsync_enabled", False),
+            )
         except Exception as e:
             state.add_error(f"audit_jsonl_append failed at {log_path_str}: {e}")
             if getattr(state.config, "audit_fail_closed", False):
