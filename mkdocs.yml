@@ -22,6 +22,11 @@ plugins:
             - packages/hive-swarm
             - packages/ai-provider-swarm-gateway/src
 
+not_in_nav: |
+  history/**
+  patches/**
+  upstream/**
+
 nav:
   - Home: index.md
   - Getting Started:
@@ -48,7 +53,7 @@ nav:
       - Production Checklist: operations/production-checklist.md
       - Troubleshooting: operations/troubleshooting.md
   - History:
-      - Roadmap: history/README.md
+      - Provenance Archive: history/README.md
   - ADR:
       - 0001 Monorepo Structure: adr/0001-monorepo-structure.md
       - 0002 Pydantic v2 Discipline: adr/0002-pydantic-v2-discipline.md
