@@ -183,11 +183,16 @@ def _build_user_prompt(
     include_objective=True,
     max_pattern_chars=300,
     max_patterns=5,
+    examples: list[dict[str, Any]] | None = None,
 ):
     parts = [task_description.strip()]
     shared = (task_context or {}).get("shared_context") or {}
     if not isinstance(shared, dict):
         shared = {}
+
+    if examples is None:
+        shared_examples = shared.get("examples")
+        examples = shared_examples if isinstance(shared_examples, list) else None
 
     if include_retrieved_patterns:
         patterns = shared.get("retrieved_patterns") or []
@@ -210,6 +215,22 @@ def _build_user_prompt(
         objective = str(shared.get("objective") or "").strip()
         if objective and objective.lower() not in task_description.lower():
             parts.append(f"\nOverall swarm objective: {objective}")
+
+    if examples:
+        usable_examples = []
+        for idx, example in enumerate(examples, start=1):
+            if not isinstance(example, dict):
+                continue
+            example_input = str(example.get("input") or "").strip()
+            example_output = str(example.get("output") or "").strip()
+            if not example_input or not example_output:
+                continue
+            usable_examples.append(
+                f"Example {idx}:\nInput: {example_input}\nOutput: {example_output}"
+            )
+        if usable_examples:
+            parts.append("\nExamples / demonstrations:")
+            parts.extend(usable_examples)
 
     return "\n".join(parts)
 

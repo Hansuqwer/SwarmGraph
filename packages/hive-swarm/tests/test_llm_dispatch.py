@@ -162,6 +162,28 @@ def test_build_user_prompt_caps_pattern_count_and_length():
     assert long_x_blocks == []
 
 
+def test_build_user_prompt_allows_literal_braces():
+    out = _build_user_prompt("fn() { return 1; }", task_context={})
+    assert "fn() { return 1; }" in out
+
+
+def test_build_user_prompt_includes_valid_examples_and_skips_malformed():
+    ctx = {
+        "shared_context": {
+            "examples": [
+                {"input": "x", "output": "y"},
+                {"input": "missing output"},
+                "bad",
+            ]
+        }
+    }
+    out = _build_user_prompt("task", task_context=ctx)
+    assert "Examples / demonstrations" in out
+    assert "Input: x" in out
+    assert "Output: y" in out
+    assert "missing output" not in out
+
+
 # ── response extraction ──────────────────────────────────────────────────
 
 
