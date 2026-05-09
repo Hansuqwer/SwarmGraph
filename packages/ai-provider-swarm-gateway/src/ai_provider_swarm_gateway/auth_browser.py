@@ -23,6 +23,7 @@ class BrowserSessionToken:
     token: str
     source_browser: str
     cookie_name: str
+    cookie_domain: str = ""
 
 
 class CookieJarProvider(Protocol):
@@ -54,16 +55,28 @@ class BrowserCookie3Provider:
             raise BrowserAuthError(f"could not read {browser} cookies") from exc
 
 
-_PROVIDER_COOKIE_RULES: dict[str, tuple[str, tuple[str, ...]]] = {
-    "chatgpt": ("openai", ("__Secure-next-auth.session-token", "oai-did")),
-    "qwen": ("qwen", ("token", "_uab_collina")),
-    "kimi": ("kimi", ("kimi-auth", "refresh_token", "access_token")),
+# provider -> (canonical provider id, accepted cookie names, allowed domain suffixes)
+_PROVIDER_COOKIE_RULES: dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]] = {
+    "chatgpt": (
+        "openai",
+        ("__Secure-next-auth.session-token", "oai-did"),
+        ("chatgpt.com", "openai.com"),
+    ),
+    "qwen": ("qwen", ("token", "_uab_collina"), ("qwen.ai", "chat.qwen.ai")),
+    "kimi": ("kimi", ("kimi-auth", "refresh_token", "access_token"), ("kimi.com",)),
 }
 
 
 def _cookie_attr(cookie: object, name: str) -> str:
     value = getattr(cookie, name, "")
     return str(value or "")
+
+
+def _cookie_domain_matches(cookie_domain: str, allowed_suffixes: tuple[str, ...]) -> bool:
+    domain = cookie_domain.strip().lower().lstrip(".")
+    if not domain:
+        return False
+    return any(domain == suffix or domain.endswith(f".{suffix}") for suffix in allowed_suffixes)
 
 
 def extract_browser_session_token(
@@ -78,13 +91,16 @@ def extract_browser_session_token(
     if provider_key not in _PROVIDER_COOKIE_RULES:
         raise BrowserAuthError(f"unsupported provider: {provider}")
     browser_key = browser.lower().strip()
-    canonical_provider, cookie_names = _PROVIDER_COOKIE_RULES[provider_key]
+    canonical_provider, cookie_names, allowed_domains = _PROVIDER_COOKIE_RULES[provider_key]
     jar_provider = cookie_provider or BrowserCookie3Provider()
 
     for cookie in jar_provider.load(browser_key):
         cookie_name = _cookie_attr(cookie, "name")
         cookie_value = _cookie_attr(cookie, "value")
+        cookie_domain = _cookie_attr(cookie, "domain")
         if cookie_name not in cookie_names or not cookie_value:
+            continue
+        if not _cookie_domain_matches(cookie_domain, allowed_domains):
             continue
         return BrowserSessionToken(
             provider=canonical_provider,
@@ -92,6 +108,7 @@ def extract_browser_session_token(
             token=cookie_value,
             source_browser=browser_key,
             cookie_name=cookie_name,
+            cookie_domain=cookie_domain,
         )
     return None
 

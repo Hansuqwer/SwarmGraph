@@ -319,6 +319,46 @@ def test_collect_results_node_signs_each_worker_result(audit_env):
     assert len(worker_records) == 2
 
 
+def test_collect_results_node_signs_stream_hitl_decision(audit_env):
+    from swarm.models.agent import WorkerResult
+    from swarm.models.config import SwarmConfig
+    from swarm.models.state import SwarmState
+    from swarm.models.task import SwarmTask
+    from swarm.nodes.worker import collect_results_node
+
+    state = SwarmState(
+        swarm_id="s1",
+        objective="x",
+        config=SwarmConfig(audit_signing_enabled=True),
+    )
+    state.tasks.append(
+        SwarmTask(task_id="t1", description="x", status="assigned", assigned_to="a1")
+    )
+    state.worker_results = [
+        WorkerResult(
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=False,
+            error_message="stream_hitl: pattern_match",
+            metadata={
+                "stream_hitl_reason": "pattern_match",
+                "stream_hitl_partial_chars": 12,
+                "stream_hitl_partial_preview": "BAD preview",
+            },
+        )
+    ]
+
+    out = collect_results_node(state.to_json_dict())
+    final = SwarmState.from_json_dict(out)
+
+    kinds = [record["kind"] for record in final.audit_records]
+    assert kinds == ["stream_hitl_decision", "worker_result"]
+    decision = final.audit_records[0]
+    assert decision["payload"]["reason"] == "pattern_match"
+    assert decision["payload"]["action"] == "abort"
+
+
 def test_full_chain_verifies_after_consensus_and_workers(audit_env):
     """End-to-end: consensus + worker_result chain must verify cleanly."""
     from swarm.models.agent import AgentVote, WorkerResult

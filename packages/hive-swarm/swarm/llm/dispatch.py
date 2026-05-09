@@ -485,8 +485,13 @@ class _StreamingGuard:
         self.check_every_n_chunks = max(1, int(check_every_n_chunks))
         self._chunks_since_check = 0
 
-    def check(self, accumulated_text: str, chunk_index: int) -> None:
-        """Inspect the accumulated text. Raise if a guard fires."""
+    def check(self, accumulated_text: str, chunk_index: int, *, force: bool = False) -> None:
+        """Inspect accumulated text and raise if a guard fires.
+
+        Pattern checks are normally throttled by ``check_every_n_chunks`` for
+        long streams. ``force=True`` bypasses the throttle and is used at stream
+        completion so short streams cannot skip the final safety check.
+        """
         # Length cap is cheap — check every chunk
         if len(accumulated_text) > self.max_output_chars:
             raise StreamingHITLInterrupt(
@@ -494,11 +499,12 @@ class _StreamingGuard:
                 accumulated_text,
             )
 
-        # Throttle pattern checks
-        self._chunks_since_check += 1
-        if self._chunks_since_check < self.check_every_n_chunks:
-            return
-        self._chunks_since_check = 0
+        # Throttle pattern checks unless this is an explicit final check.
+        if not force:
+            self._chunks_since_check += 1
+            if self._chunks_since_check < self.check_every_n_chunks:
+                return
+            self._chunks_since_check = 0
 
         for pat in self.compiled_patterns:
             m = pat.search(accumulated_text)
@@ -555,43 +561,54 @@ class GatewayDispatcher:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        kwargs_with_model = {"max_tokens": self.max_tokens, "temperature": self.temperature}
+        kwargs_with_model = {
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "timeout_seconds": self.timeout_seconds,
+        }
         if model_id:
             kwargs_with_model["model"] = model_id
+
+        def _without(kwargs: dict[str, Any], *names: str) -> dict[str, Any]:
+            return {k: v for k, v in kwargs.items() if k not in names}
 
         last_err = None
         for name in self._METHOD_CANDIDATES:
             method = getattr(adapter, name, None)
             if not callable(method):
                 continue
-            try:
-                return method(messages=messages, **kwargs_with_model)
-            except TypeError as e:
-                last_err = e
-                if "model" in kwargs_with_model:
-                    try:
-                        kwargs_no_model = {
-                            k: v for k, v in kwargs_with_model.items() if k != "model"
-                        }
-                        return method(messages=messages, **kwargs_no_model)
-                    except TypeError as e2:
-                        last_err = e2
+
+            attempts = [
+                ((), {"messages": messages, **kwargs_with_model}),
+                ((), {"messages": messages, **_without(kwargs_with_model, "model")}),
+                ((), {"messages": messages, **_without(kwargs_with_model, "timeout_seconds")}),
+                (
+                    (),
+                    {
+                        "messages": messages,
+                        **_without(kwargs_with_model, "model", "timeout_seconds"),
+                    },
+                ),
+                ((), {"prompt": user_prompt, **_without(kwargs_with_model, "model")}),
+                (
+                    (),
+                    {
+                        "prompt": user_prompt,
+                        **_without(kwargs_with_model, "model", "timeout_seconds"),
+                    },
+                ),
+                ((user_prompt,), {}),
+            ]
+            for args, call_kwargs in attempts:
                 try:
-                    return method(
-                        prompt=user_prompt,
-                        **{k: v for k, v in kwargs_with_model.items() if k != "model"},
-                    )
-                except TypeError as e3:
-                    last_err = e3
-                try:
-                    return method(user_prompt)
-                except Exception as e4:
-                    last_err = e4
+                    return method(*args, **call_kwargs)
+                except TypeError as e:
+                    last_err = e
                     continue
-            except Exception as e:
-                raise WorkerLLMError(
-                    f"adapter {type(adapter).__name__}.{name}() raised: {e}"
-                ) from e
+                except Exception as e:
+                    raise WorkerLLMError(
+                        f"adapter {type(adapter).__name__}.{name}() raised: {e}"
+                    ) from e
 
         raise WorkerLLMError(
             f"no callable LLM method on adapter {type(adapter).__name__} "
@@ -704,21 +721,32 @@ class GatewayDispatcher:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        kwargs = {"max_tokens": self.max_tokens, "temperature": self.temperature}
+        kwargs = {
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "timeout_seconds": self.timeout_seconds,
+        }
         if model_id:
             kwargs["model"] = model_id
 
-        try:
-            stream = chat_stream(messages=messages, **kwargs)
-        except TypeError:
+        stream = None
+        last_call_err = None
+        for call_kwargs in (
+            kwargs,
+            {k: v for k, v in kwargs.items() if k != "model"},
+            {k: v for k, v in kwargs.items() if k != "timeout_seconds"},
+            {k: v for k, v in kwargs.items() if k not in {"model", "timeout_seconds"}},
+        ):
             try:
-                stream = chat_stream(
-                    messages=messages, **{k: v for k, v in kwargs.items() if k != "model"}
-                )
+                stream = chat_stream(messages=messages, **call_kwargs)
+                break
+            except TypeError as e:
+                last_call_err = e
+                continue
             except Exception as e:
                 raise WorkerLLMError(f"chat_stream call failed: {e}") from e
-        except Exception as e:
-            raise WorkerLLMError(f"chat_stream call failed: {e}") from e
+        if stream is None:
+            raise WorkerLLMError(f"chat_stream call failed: {last_call_err}")
 
         accumulated = ""
         index = 0
@@ -746,6 +774,10 @@ class GatewayDispatcher:
             raise
         except Exception as e:
             raise WorkerLLMError(f"chat_stream iteration raised: {e}") from e
+
+        # Force one final pattern check so short streams cannot bypass the
+        # throttled regex guard by completing before the next scheduled check.
+        guard.check(accumulated, index, force=True)
 
         yield StreamChunk(
             delta="",

@@ -10,6 +10,30 @@ Each version links to its milestone doc and handover notes in
 
 ---
 
+## [0.8.1] — 2026-05-09
+
+**MCP toolbox + safety hardening**
+
+### Added
+- Optional `ai-provider-swarm-gateway[mcp-toolbox]` extra and
+  `ai-provider-gateway mcp-toolbox` CLI group.
+- MCP toolbox helpers for manifest output, generic MCP client config,
+  Flutter project summary, and opt-in `serve` via the MCP SDK.
+
+### Fixed
+- Streaming HITL guard now force-checks accumulated text at stream completion,
+  preventing short streams from bypassing throttled regex checks.
+- Streaming HITL failures now emit dedicated `stream_hitl_decision` audit
+  records before the related `worker_result`.
+- S3 audit append now uses conditional create for missing audit objects to
+  reduce first-writer lost-update races.
+- Browser auth import now requires provider cookie domain suffix matches.
+- 9router base URL validation now rejects non-loopback HTTP URLs.
+- Gateway dispatcher now forwards `timeout_seconds` to adapters that accept it
+  while preserving legacy adapter fallback.
+
+---
+
 ## [0.8.0] — 2026-05-08
 
 **Audit signing + Streaming HITL guards**
@@ -189,6 +213,7 @@ Each version links to its milestone doc and handover notes in
 
 ---
 
+[0.8.1]: https://github.com/Hansuqwer/SwarmGraph/releases/tag/v0.8.1
 [0.8.0]: https://github.com/Hansuqwer/SwarmGraph/releases/tag/v0.8.0
 [0.7.1]: https://github.com/Hansuqwer/SwarmGraph/releases/tag/v0.7.1
 [0.7.0]: https://github.com/Hansuqwer/SwarmGraph/releases/tag/v0.7.0

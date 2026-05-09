@@ -15,6 +15,7 @@ runner = CliRunner()
 class _Cookie:
     name: str
     value: str
+    domain: str = "chatgpt.com"
 
 
 class _Provider:
@@ -42,6 +43,21 @@ def test_extract_browser_session_token_missing_returns_none():
     provider = _Provider([_Cookie("unrelated", "secret")])
 
     assert extract_browser_session_token("chatgpt", cookie_provider=provider) is None
+
+
+def test_extract_browser_session_token_ignores_wrong_domain():
+    provider = _Provider(
+        [
+            _Cookie("__Secure-next-auth.session-token", "wrong", "evil.example"),
+            _Cookie("__Secure-next-auth.session-token", "secret", ".chatgpt.com"),
+        ]
+    )
+
+    token = extract_browser_session_token("chatgpt", cookie_provider=provider)
+
+    assert token is not None
+    assert token.token == "secret"
+    assert token.cookie_domain == ".chatgpt.com"
 
 
 def test_extract_browser_session_token_rejects_unknown_provider():

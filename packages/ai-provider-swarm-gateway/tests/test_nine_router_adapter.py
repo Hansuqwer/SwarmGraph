@@ -19,6 +19,7 @@ from ai_provider_swarm_gateway.providers.nine_router_adapter import (
     _extract_content,
     _parse_quirky_body,
     _resolve_api_key,
+    _validate_http_url,
 )
 
 # ── Fake HTTP transport ──────────────────────────────────────────────────
@@ -211,11 +212,22 @@ def test_adapter_defaults(monkeypatch):
 
 
 def test_adapter_env_overrides(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", "http://router.local:9000/v1/")
+    monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", "https://router.example/v1/")
     monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_MODEL", "custom/model")
     a = NineRouterAdapter()
-    assert a.base_url == "http://router.local:9000/v1"
+    assert a.base_url == "https://router.example/v1"
     assert a.model == "custom/model"
+
+
+def test_validate_base_url_allows_local_http_and_remote_https():
+    assert _validate_http_url("http://localhost:20128/v1") == "http://localhost:20128/v1"
+    assert _validate_http_url("http://127.0.0.1:20128/v1") == "http://127.0.0.1:20128/v1"
+    assert _validate_http_url("https://router.example/v1") == "https://router.example/v1"
+
+
+def test_validate_base_url_rejects_remote_http():
+    with pytest.raises(ValueError, match="HTTPS"):
+        _validate_http_url("http://example.com/v1")
 
 
 def test_is_configured_true_with_explicit_key():

@@ -155,28 +155,29 @@ def test_dispatch_stream_max_chars_raises():
     assert exc_info.value.char_count > 100
 
 
-def test_dispatch_stream_throttle_skips_intermediate_pattern_checks():
-    """check_every_n_chunks=10 means we check on chunk 10, 20, ... only."""
+def test_dispatch_stream_throttle_skips_intermediate_but_checks_final():
+    """Throttling skips intermediate regex checks but completion forces one."""
     adapter = _FakeAdapter(
         [
-            # 5 chunks; with check_every=10, none trigger pattern check
+            # 3 chunks; with check_every=10, only the final forced check should fire.
+            {"delta": "safe ", "finish_reason": ""},
             {"delta": "BAD", "finish_reason": ""},
-            {"delta": "BAD", "finish_reason": ""},
-            {"delta": "BAD", "finish_reason": ""},
-            {"delta": "BAD", "finish_reason": ""},
-            {"delta": "BAD", "finish_reason": "stop"},
+            {"delta": " done", "finish_reason": "stop"},
         ]
     )
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: adapter)
-    # No interrupt expected — the throttle never fires
-    chunks = list(
-        d.dispatch_stream(
-            "coder",
-            "task",
-            context=_ctx_with_guards(patterns=[r"BAD"], check_every=10),
+
+    with pytest.raises(StreamingHITLInterrupt) as exc_info:
+        list(
+            d.dispatch_stream(
+                "coder",
+                "task",
+                context=_ctx_with_guards(patterns=[r"BAD"], check_every=10),
+            )
         )
-    )
-    assert chunks[-1].done is True
+
+    assert exc_info.value.reason == "pattern_match"
+    assert "BAD" in exc_info.value.partial_text
 
 
 def test_dispatch_stream_invalid_regex_caught_at_config_time():
@@ -190,8 +191,7 @@ def test_dispatch_stream_invalid_regex_caught_at_config_time():
 
 
 def test_dispatch_stream_pattern_check_runs_on_completion():
-    """Even with throttling, the final chunk should run guards if not throttled.
-    This test verifies the check happens at chunk boundaries we expect."""
+    """Final accumulated text is checked before the done chunk is yielded."""
     adapter = _FakeAdapter(
         [
             {"delta": "good ", "finish_reason": ""},

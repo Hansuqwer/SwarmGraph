@@ -337,3 +337,49 @@ def test_collect_results_node_marks_tasks_complete():
     out = collect_results_node(state.to_json_dict())
     final = SwarmState.from_json_dict(out)
     assert "t1" in final.completed_task_ids
+
+
+def test_gateway_dispatcher_passes_timeout_seconds_to_adapter():
+    from swarm.llm.dispatch import GatewayDispatcher
+
+    class TimeoutAdapter:
+        def __init__(self):
+            self.timeout_seconds = None
+
+        def is_configured(self):
+            return True
+
+        def chat(self, *, messages, max_tokens, temperature, timeout_seconds, model=None):
+            self.timeout_seconds = timeout_seconds
+            return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]}
+
+    adapter = TimeoutAdapter()
+    dispatcher = GatewayDispatcher(
+        default_provider="test",
+        timeout_seconds=12.5,
+        adapter_factory=lambda provider_id: adapter,
+    )
+
+    resp = dispatcher.dispatch_full("coder", "do work")
+
+    assert resp.text == "ok"
+    assert adapter.timeout_seconds == 12.5
+
+
+def test_gateway_dispatcher_timeout_fallback_for_legacy_adapter():
+    from swarm.llm.dispatch import GatewayDispatcher
+
+    class LegacyAdapter:
+        def is_configured(self):
+            return True
+
+        def chat(self, *, messages, max_tokens, temperature, model=None):
+            return {"choices": [{"message": {"content": "legacy-ok"}, "finish_reason": "stop"}]}
+
+    dispatcher = GatewayDispatcher(
+        default_provider="test",
+        timeout_seconds=12.5,
+        adapter_factory=lambda provider_id: LegacyAdapter(),
+    )
+
+    assert dispatcher.dispatch_full("coder", "do work").text == "legacy-ok"

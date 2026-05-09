@@ -45,6 +45,7 @@ else:
         return cast(str, _rich_escape_raw(s))
 
 
+from .mcptoolbox import app as mcptoolbox_app
 from .quota.tracker import QuotaTracker
 
 app = typer.Typer(
@@ -75,6 +76,7 @@ app.add_typer(providers_app)
 app.add_typer(tenants_app)
 app.add_typer(auth_app)
 app.add_typer(audit_app)
+app.add_typer(mcptoolbox_app)
 tenants_app.add_typer(pool_app)
 
 _console = Console() if _HAS_RICH else None

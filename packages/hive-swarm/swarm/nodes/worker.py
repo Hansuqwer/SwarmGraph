@@ -242,6 +242,24 @@ def collect_results_node(state: dict[str, Any]) -> dict[str, Any]:
     # v8: sign each worker_result event (in collect_results_node where we
     # have full SwarmState). Each result is one signed audit record.
     for r in swarm.worker_results:
+        stream_hitl_reason = str(r.metadata.get("stream_hitl_reason") or "")
+        if stream_hitl_reason:
+            sign_and_record(
+                swarm,
+                "stream_hitl_decision",
+                {
+                    "agent_id": r.agent_id,
+                    "agent_role": r.agent_role,
+                    "task_id": r.task_id,
+                    "reason": stream_hitl_reason,
+                    "action": "abort",
+                    "partial_chars": int(r.metadata.get("stream_hitl_partial_chars") or 0),
+                    "partial_preview": str(r.metadata.get("stream_hitl_partial_preview") or "")[
+                        :500
+                    ],
+                },
+            )
+
         sign_and_record(
             swarm,
             "worker_result",

@@ -14,6 +14,7 @@ v6 history preserved:
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import time
@@ -154,10 +155,22 @@ def _normalise_messages(messages_or_prompt, *, fallback_prompt=None):
     return out
 
 
+def _is_loopback_host(host: str) -> bool:
+    normalized = host.strip("[]").lower()
+    if normalized in {"localhost", "localhost.localdomain"}:
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
 def _validate_http_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in _ALLOWED_URL_SCHEMES or not parsed.netloc:
         raise ValueError(f"URL must be absolute HTTP(S): {url!r}")
+    if parsed.scheme == "http" and not _is_loopback_host(parsed.hostname or ""):
+        raise ValueError("9router base URL must use HTTPS unless it targets loopback/localhost")
     return url
 
 
@@ -334,7 +347,7 @@ class NineRouterAdapter(_BaseProviderAdapter):
         timeout_seconds: float | None = None,
         http_client: _HttpClient | None = None,
     ) -> None:
-        self.base_url = (
+        self.base_url = _validate_http_url(
             base_url or os.environ.get("AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", DEFAULT_BASE_URL)
         ).rstrip("/")
         self.model = model or os.environ.get("AI_PROVIDER_GATEWAY_9ROUTER_MODEL", DEFAULT_MODEL)
@@ -366,6 +379,7 @@ class NineRouterAdapter(_BaseProviderAdapter):
         model=None,
         max_tokens=512,
         temperature=0.0,
+        timeout_seconds: float | None = None,
         extra_payload=None,
     ) -> NineRouterResponse:
         api_key = _resolve_api_key(self._explicit_api_key)
@@ -389,7 +403,7 @@ class NineRouterAdapter(_BaseProviderAdapter):
             self.endpoint,
             payload,
             api_key=api_key,
-            timeout=self.timeout_seconds,
+            timeout=float(timeout_seconds or self.timeout_seconds),
         )
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
@@ -421,6 +435,7 @@ class NineRouterAdapter(_BaseProviderAdapter):
         model=None,
         max_tokens=512,
         temperature=0.0,
+        timeout_seconds: float | None = None,
         extra_payload=None,
     ) -> Iterator[dict[str, Any]]:
         api_key = _resolve_api_key(self._explicit_api_key)
@@ -444,7 +459,7 @@ class NineRouterAdapter(_BaseProviderAdapter):
             self.endpoint,
             payload,
             api_key=api_key,
-            timeout=DEFAULT_STREAM_TIMEOUT_SECONDS,
+            timeout=float(timeout_seconds or DEFAULT_STREAM_TIMEOUT_SECONDS),
         ):
             event = _parse_sse_data_line(line)
             if event is None:

@@ -23,6 +23,7 @@ tui = [
 ]
 vault = ["cryptography>=42,<47"]
 browser-auth = ["browser-cookie3>=0.20,<1"]
+mcp-toolbox = ["mcp>=1.9,<2"]
 langgraph = [
     "langgraph>=0.3,<2",
     "langgraph-checkpoint>=4.0.0,<5",

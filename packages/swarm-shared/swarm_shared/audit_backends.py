@@ -170,6 +170,8 @@ class S3AuditBackend:
             }
             if etag:
                 kwargs["IfMatch"] = etag
+            else:
+                kwargs["IfNoneMatch"] = "*"
             try:
                 client.put_object(**kwargs)
                 return

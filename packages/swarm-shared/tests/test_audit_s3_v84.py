@@ -50,13 +50,23 @@ class _FakeS3Client:
             raise _S3Error("NoSuchKey") from exc
         return {"Body": _Body(body), "ETag": etag}
 
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes, IfMatch: str | None = None):
+    def put_object(
+        self,
+        *,
+        Bucket: str,
+        Key: str,
+        Body: bytes,
+        IfMatch: str | None = None,
+        IfNoneMatch: str | None = None,
+    ):
         obj_key = (Bucket, Key)
         self.put_attempts[obj_key] += 1
         if obj_key in self.fail_first_put and self.put_attempts[obj_key] == 1:
             raise _S3Error("PreconditionFailed")
         existing = self.objects.get(obj_key)
         if IfMatch is not None and existing is not None and existing[1] != IfMatch:
+            raise _S3Error("PreconditionFailed")
+        if IfNoneMatch == "*" and existing is not None:
             raise _S3Error("PreconditionFailed")
         self.objects[obj_key] = (Body.decode("utf-8"), f"etag-{self.put_attempts[obj_key]}")
         return {"ETag": self.objects[obj_key][1]}
@@ -106,6 +116,41 @@ def test_s3_backend_retries_on_precondition_failure():
 
     backend.append(_record(0))
 
+    assert client.put_attempts[key] == 2
+
+
+def test_s3_backend_uses_conditional_create_on_missing_object():
+    client = _FakeS3Client()
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+
+    backend.append(_record(0))
+
+    key = ("audit-bucket", "audit/2026-05-08/s1.jsonl")
+    assert client.put_attempts[key] == 1
+
+
+def test_s3_backend_retries_when_missing_key_create_races():
+    class _RacingCreateS3Client(_FakeS3Client):
+        def put_object(self, **kwargs):
+            obj_key = (kwargs["Bucket"], kwargs["Key"])
+            if kwargs.get("IfNoneMatch") == "*" and obj_key not in self.objects:
+                self.put_attempts[obj_key] += 1
+                existing = _record(0).model_dump_json() + "\n"
+                self.objects[obj_key] = (existing, "etag-race")
+                raise _S3Error("PreconditionFailed")
+            return super().put_object(**kwargs)
+
+    client = _RacingCreateS3Client()
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    first = _record(0)
+    second = _record(1, prev_hash=first.record_hash)
+
+    backend.append(second)
+
+    key = ("audit-bucket", "audit/2026-05-08/s1.jsonl")
+    stored = client.objects[key][0]
+    assert '"sequence":0' in stored
+    assert '"sequence":1' in stored
     assert client.put_attempts[key] == 2
 
 
