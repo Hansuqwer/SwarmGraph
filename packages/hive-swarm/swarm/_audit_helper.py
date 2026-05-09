@@ -12,9 +12,8 @@ Design notes:
     audit_kinds — caller can call it unconditionally.
   - Resolves secret from os.environ[config.audit_secret_env]. Missing →
     raises AuditMisconfigured (loud — better than silently signing nothing).
-  - Persistent JSONL append is best-effort: file errors are swallowed
-    after writing to state.errors. The in-memory chain is the source of
-    truth; the JSONL file is durability for ops/forensics.
+  - Persistent JSONL append is best-effort unless audit_fail_closed=True.
+    Under fail-closed, append failure raises after recording state.errors.
 """
 
 from __future__ import annotations
@@ -95,7 +94,7 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
     record_dict = record.model_dump(mode="json")
     state.append_audit_record(record_dict)
 
-    # Persistent JSONL flush — best effort
+    # Persistent JSONL flush — best effort unless fail-closed is enabled.
     log_path_str = state.config.resolve_audit_log_path(
         swarm_id=state.swarm_id,
         tenant_id=record.tenant_id,
@@ -107,6 +106,8 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
             append_jsonl(Path(log_path_str), record)
         except Exception as e:
             state.add_error(f"audit_jsonl_append failed at {log_path_str}: {e}")
+            if getattr(state.config, "audit_fail_closed", False):
+                raise RuntimeError(f"audit_jsonl_append failed at {log_path_str}: {e}") from e
 
     return record_dict
 

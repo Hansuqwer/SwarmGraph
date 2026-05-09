@@ -73,17 +73,21 @@ def _consume_stream_to_response(
     """
     accumulated = ""
     finish = ""
+    last_text = ""
     for chunk in chunks_iter:
         if isinstance(chunk, StreamChunk):
+            if chunk.delta:
+                accumulated += chunk.delta
             if chunk.text:
-                accumulated += chunk.text
+                last_text = chunk.text
             if chunk.done:
                 finish = chunk.finish_reason or finish
         else:
             # Defensive: shouldn't happen but tolerate raw strings
             accumulated += str(chunk)
+    final_text = accumulated or last_text
     return WorkerLLMResponse(
-        text=accumulated,
+        text=final_text,
         backend="gateway",
         latency_ms=0,
         input_tokens=0,

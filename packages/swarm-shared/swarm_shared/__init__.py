@@ -13,6 +13,7 @@ from .redaction import (
     SECRET_PATTERNS,
     Redactor,
     redact_obj,
+    redact_patch,
     redact_text,
 )
 from .time import monotonic_ts, now_ts
@@ -28,6 +29,7 @@ __all__ = [
     "CappedListConfig",
     "SECRET_PATTERNS",
     "redact_text",
+    "redact_patch",
     "redact_obj",
     "Redactor",
     "BaseRedactingCheckpointer",

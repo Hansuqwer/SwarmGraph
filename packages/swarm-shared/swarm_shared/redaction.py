@@ -153,3 +153,25 @@ class Redactor:
         if isinstance(obj, str):
             return self.redact_text(obj)
         return obj
+
+
+def redact_patch(patch_text: str, *, detect_high_entropy: bool = False) -> str:
+    """Redact secrets in a unified diff without breaking patch structure."""
+    out: list[str] = []
+    for line in patch_text.splitlines(keepends=True):
+        newline = ""
+        body = line
+        if body.endswith("\r\n"):
+            body, newline = body[:-2], "\r\n"
+        elif body.endswith("\n"):
+            body, newline = body[:-1], "\n"
+
+        if body.startswith(("--- ", "+++ ", "@@")):
+            out.append(body + newline)
+        elif body.startswith(("+", "-", " ")) and len(body) > 1:
+            out.append(
+                body[0] + redact_text(body[1:], detect_high_entropy=detect_high_entropy) + newline
+            )
+        else:
+            out.append(redact_text(body, detect_high_entropy=detect_high_entropy) + newline)
+    return "".join(out)

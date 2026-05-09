@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timezone
 
 import pytest
 from swarm_shared.audit import GENESIS_PREV_HASH, AuditRecord, sign_record, verify_chain
-from swarm_shared.audit_backends import S3AuditBackend
+from swarm_shared.audit_backends import JSONLBackend, S3AuditBackend
 
 SECRET = b"test-hmac-secret-not-real"
 
@@ -70,7 +70,13 @@ class _FakeS3Client:
         return {}
 
 
-def _record(seq: int, *, swarm_id: str = "s1", prev_hash: str = GENESIS_PREV_HASH) -> AuditRecord:
+def _record(
+    seq: int,
+    *,
+    swarm_id: str = "s1",
+    prev_hash: str = GENESIS_PREV_HASH,
+    day: int = 8,
+) -> AuditRecord:
     return sign_record(
         kind="worker_result",
         swarm_id=swarm_id,
@@ -78,7 +84,7 @@ def _record(seq: int, *, swarm_id: str = "s1", prev_hash: str = GENESIS_PREV_HAS
         payload={"i": seq},
         prev_hash=prev_hash,
         secret=SECRET,
-        timestamp=datetime(2026, 5, 8, tzinfo=UTC).timestamp(),
+        timestamp=datetime(2026, 5, day, tzinfo=UTC).timestamp(),
     )
 
 
@@ -128,6 +134,52 @@ def test_s3_backend_loads_all_partitions_for_swarm_in_sequence_order():
     assert verify_chain(records, secret=SECRET) == 2
 
 
+def test_jsonl_backend_loads_by_swarm_and_date_range(tmp_path):
+    path = tmp_path / "audit.jsonl"
+    backend = JSONLBackend(path)
+    first = _record(0, day=7)
+    second = _record(1, prev_hash=first.record_hash, day=8)
+    other = _record(0, swarm_id="other", day=8)
+
+    backend.append(first)
+    backend.append(second)
+    backend.append(other)
+
+    assert [record.sequence for record in backend.load("s1")] == [0, 1]
+    filtered = backend.load("s1", start_date="2026-05-08", end_date="2026-05-08")
+    assert [record.sequence for record in filtered] == [1]
+    assert verify_chain(backend.load("s1"), secret=SECRET) == 2
+
+
+def test_audit_backend_date_range_rejects_invalid_dates(tmp_path):
+    backend = JSONLBackend(tmp_path / "audit.jsonl")
+    backend.append(_record(0))
+
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        backend.load("s1", start_date="20260508")
+    with pytest.raises(ValueError, match="<="):
+        backend.load("s1", start_date="2026-05-09", end_date="2026-05-08")
+
+
+def test_s3_backend_load_filters_date_partitions():
+    client = _FakeS3Client()
+    first = _record(0, day=7)
+    second = _record(1, prev_hash=first.record_hash, day=8)
+    client.objects[("audit-bucket", "audit/2026-05-07/s1.jsonl")] = (
+        first.model_dump_json() + "\n",
+        "etag-1",
+    )
+    client.objects[("audit-bucket", "audit/2026-05-08/s1.jsonl")] = (
+        second.model_dump_json() + "\n",
+        "etag-2",
+    )
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+
+    records = backend.load("s1", start_date="2026-05-08", end_date="2026-05-08")
+
+    assert [record.sequence for record in records] == [1]
+
+
 def test_s3_backend_restore_archive_requests_matching_swarm_objects():
     client = _FakeS3Client()
     client.objects[("audit-bucket", "audit/2026-05-07/s1.jsonl")] = ("", "etag-1")
@@ -139,6 +191,16 @@ def test_s3_backend_restore_archive_requests_matching_swarm_objects():
     assert count == 1
     assert client.restores[0]["Key"] == "audit/2026-05-07/s1.jsonl"
     assert client.restores[0]["RestoreRequest"]["Days"] == 10
+
+
+def test_s3_backend_restore_swarm_alias():
+    client = _FakeS3Client()
+    client.objects[("audit-bucket", "audit/2026-05-07/s1.jsonl")] = ("", "etag-1")
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+
+    assert backend.restore_swarm("s1", days=7, tier="Standard") == 1
+    assert client.restores[0]["RestoreRequest"]["Days"] == 7
+    assert client.restores[0]["RestoreRequest"]["GlacierJobParameters"]["Tier"] == "Standard"
 
 
 def test_s3_backend_rejects_invalid_restore_args():

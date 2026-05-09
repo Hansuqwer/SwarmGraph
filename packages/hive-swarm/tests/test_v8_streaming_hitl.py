@@ -30,7 +30,7 @@ def test_interrupt_default_matched_pattern_empty():
     assert si.matched_pattern == ""
 
 
-def test_consume_stream_concatenates_all_chunks():
+def test_consume_stream_concatenates_all_chunk_deltas():
     chunks = [
         StreamChunk(delta="Hello", text="Hello", index=0, done=False, finish_reason=""),
         StreamChunk(delta=" world", text=" world", index=1, done=False, finish_reason=""),
@@ -43,6 +43,30 @@ def test_consume_stream_concatenates_all_chunks():
     )
     assert resp.text == "Hello world!"
     assert resp.finish_reason == "stop"
+
+
+def test_consume_stream_uses_delta_not_cumulative_text():
+    chunks = [
+        StreamChunk(delta="A", text="A", index=0, done=False, finish_reason=""),
+        StreamChunk(delta="B", text="AB", index=1, done=False, finish_reason=""),
+        StreamChunk(delta="", text="AB", index=2, done=True, finish_reason="stop"),
+    ]
+    resp = _consume_stream_to_response(
+        iter(chunks),
+        fallback_provider_id="test",
+        fallback_model_id="test-model",
+    )
+    assert resp.text == "AB"
+
+
+def test_consume_stream_falls_back_to_text_when_delta_missing():
+    chunks = [StreamChunk(delta="", text="fallback", index=0, done=True, finish_reason="stop")]
+    resp = _consume_stream_to_response(
+        iter(chunks),
+        fallback_provider_id="test",
+        fallback_model_id="test-model",
+    )
+    assert resp.text == "fallback"
 
 
 # ── Guard via dispatcher ────────────────────────────────────────────────

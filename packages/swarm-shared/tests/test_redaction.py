@@ -4,6 +4,7 @@ from swarm_shared.redaction import (
     REDACTED,
     Redactor,
     redact_obj,
+    redact_patch,
     redact_text,
 )
 
@@ -143,3 +144,22 @@ def test_redact_text_idempotent():
     once = redact_text("Bearer abcdefghijklmnop")
     twice = redact_text(once)
     assert once == twice
+
+
+def test_redact_patch_preserves_headers_and_redacts_line_bodies():
+    patch = (
+        "--- a/config.py\n"
+        "+++ b/config.py\n"
+        "@@ -1,2 +1,2 @@\n"
+        "-API_KEY = 'sk-oldoldoldoldoldoldoldoldoldold'\n"
+        "+API_KEY = 'sk-newnewnewnewnewnewnewnewnewnew'\n"
+        " context Bearer abcdefghijklmnopqrstuvwxyz\n"
+    )
+
+    redacted = redact_patch(patch)
+
+    assert redacted.startswith("--- a/config.py\n+++ b/config.py\n@@ -1,2 +1,2 @@\n")
+    assert "sk-old" not in redacted
+    assert "sk-new" not in redacted
+    assert "Bearer abc" not in redacted
+    assert redacted.count(REDACTED) >= 3

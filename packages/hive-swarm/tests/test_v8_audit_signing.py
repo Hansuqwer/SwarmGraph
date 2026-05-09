@@ -171,6 +171,78 @@ def test_audit_jsonl_path_appends_records(audit_env, tmp_path: Path):
     assert verify_chain(loaded, secret=secret) == 2
 
 
+def test_audit_jsonl_append_failure_can_fail_closed(audit_env, monkeypatch, tmp_path: Path):
+    import swarm._audit_helper as audit_helper
+    from swarm.models.config import SwarmConfig
+    from swarm.models.state import SwarmState
+
+    def fail_append(path, record):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(audit_helper, "append_jsonl", fail_append)
+    state = SwarmState(
+        swarm_id="s1",
+        objective="x",
+        config=SwarmConfig(
+            audit_signing_enabled=True,
+            audit_fail_closed=True,
+            audit_log_path=str(tmp_path / "audit.jsonl"),
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="audit_jsonl_append failed"):
+        audit_helper.sign_and_record(state, "consensus_result", {"i": 1})
+
+    assert len(state.audit_records) == 1
+    assert state.audit_sequence == 1
+    assert state.errors
+
+
+def test_collect_results_output_preview_uses_uncorrupted_stream_text(audit_env):
+    from swarm.llm.dispatch import StreamChunk
+    from swarm.models.agent import WorkerResult
+    from swarm.models.config import SwarmConfig
+    from swarm.models.state import SwarmState
+    from swarm.models.task import SwarmTask
+    from swarm.nodes.worker import _consume_stream_to_response, collect_results_node
+
+    resp = _consume_stream_to_response(
+        iter(
+            [
+                StreamChunk(delta="A", text="A", index=0, done=False, finish_reason=""),
+                StreamChunk(delta="B", text="AB", index=1, done=False, finish_reason=""),
+                StreamChunk(delta="", text="AB", index=2, done=True, finish_reason="stop"),
+            ]
+        ),
+        fallback_provider_id="test",
+        fallback_model_id="test-model",
+    )
+
+    state = SwarmState(
+        swarm_id="s1",
+        objective="x",
+        config=SwarmConfig(audit_signing_enabled=True),
+    )
+    state.tasks.append(
+        SwarmTask(task_id="t1", description="x", status="assigned", assigned_to="a1")
+    )
+    state.worker_results = [
+        WorkerResult(
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=True,
+            output=resp.text,
+            confidence=0.9,
+        )
+    ]
+
+    out = collect_results_node(state.to_json_dict())
+    final = SwarmState.from_json_dict(out)
+    worker_record = next(r for r in final.audit_records if r["kind"] == "worker_result")
+    assert worker_record["payload"]["output_preview"] == "AB"
+
+
 def test_audit_log_path_substitutes_placeholders(audit_env, tmp_path: Path):
     from swarm.models.config import SwarmConfig
 

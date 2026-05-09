@@ -8,19 +8,92 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timezone
+from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
-from .audit import AuditRecord
+from .audit import AuditRecord, append_jsonl, load_jsonl_chain
 
 
 class AuditBackend(Protocol):
     def append(self, record: AuditRecord) -> None: ...
-    def load(self, swarm_id: str) -> list[AuditRecord]: ...
+    def load(
+        self,
+        swarm_id: str,
+        *,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[AuditRecord]: ...
 
 
 class MissingAuditBackendDependency(RuntimeError):
     """Raised when an optional backend dependency is not installed."""
+
+
+def _parse_day(value: str | None, *, name: str) -> date | None:
+    if value is None:
+        return None
+    if len(value) != 10 or value[4] != "-" or value[7] != "-":
+        raise ValueError(f"{name} must use YYYY-MM-DD")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must use YYYY-MM-DD") from exc
+
+
+def _record_day(record: AuditRecord) -> date:
+    return datetime.fromtimestamp(record.timestamp, tz=UTC).date()
+
+
+def _filter_records_by_date(
+    records: list[AuditRecord],
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[AuditRecord]:
+    start = _parse_day(start_date, name="start_date")
+    end = _parse_day(end_date, name="end_date")
+    if start is not None and end is not None and start > end:
+        raise ValueError("start_date must be <= end_date")
+    if start is None and end is None:
+        return records
+    return [
+        record
+        for record in records
+        if (start is None or _record_day(record) >= start)
+        and (end is None or _record_day(record) <= end)
+    ]
+
+
+def _date_from_key(key: str, prefix: str) -> date | None:
+    rel = key[len(prefix) :].lstrip("/") if key.startswith(prefix) else key
+    day = rel.split("/", 1)[0] if rel else ""
+    try:
+        return _parse_day(day, name="partition date")
+    except ValueError:
+        return None
+
+
+class JSONLBackend:
+    """Local JSONL audit backend with the same load API as cloud backends."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def append(self, record: AuditRecord) -> None:
+        append_jsonl(self.path, record)
+
+    def load(
+        self,
+        swarm_id: str,
+        *,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[AuditRecord]:
+        if not swarm_id:
+            raise ValueError("swarm_id is required")
+        records = [record for record in load_jsonl_chain(self.path) if record.swarm_id == swarm_id]
+        return _filter_records_by_date(records, start_date=start_date, end_date=end_date)
 
 
 class S3AuditBackend:
@@ -117,17 +190,33 @@ class S3AuditBackend:
         raw = response["Body"].read().decode("utf-8")
         return [AuditRecord.model_validate_json(line) for line in raw.splitlines() if line.strip()]
 
-    def load(self, swarm_id: str) -> list[AuditRecord]:
+    def load(
+        self,
+        swarm_id: str,
+        *,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[AuditRecord]:
         if not swarm_id:
             raise ValueError("swarm_id is required")
+        start = _parse_day(start_date, name="start_date")
+        end = _parse_day(end_date, name="end_date")
+        if start is not None and end is not None and start > end:
+            raise ValueError("start_date must be <= end_date")
         client = self._get_client()
         keys: list[str] = []
         paginator = client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self.bucket, Prefix=f"{self.prefix}/"):
             for obj in page.get("Contents", []):
                 key = str(obj.get("Key", ""))
-                if key.endswith(f"/{swarm_id}.jsonl"):
-                    keys.append(key)
+                if not key.endswith(f"/{swarm_id}.jsonl"):
+                    continue
+                day = _date_from_key(key, self.prefix)
+                if start is not None and day is not None and day < start:
+                    continue
+                if end is not None and day is not None and day > end:
+                    continue
+                keys.append(key)
 
         if not keys:
             return []
@@ -157,5 +246,9 @@ class S3AuditBackend:
                     count += 1
         return count
 
+    def restore_swarm(self, swarm_id: str, *, days: int = 30, tier: str = "Bulk") -> int:
+        """Backward-compatible alias for :meth:`restore_archive`."""
+        return self.restore_archive(swarm_id, days=days, tier=tier)
 
-__all__ = ["AuditBackend", "MissingAuditBackendDependency", "S3AuditBackend"]
+
+__all__ = ["AuditBackend", "MissingAuditBackendDependency", "JSONLBackend", "S3AuditBackend"]
