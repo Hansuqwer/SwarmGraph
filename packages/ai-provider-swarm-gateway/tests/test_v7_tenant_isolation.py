@@ -1,4 +1,5 @@
 """Tests for --tenant flag end-to-end through the CLI."""
+
 from __future__ import annotations
 
 import json
@@ -14,19 +15,30 @@ runner = CliRunner()
 
 # ── --tenant flag plumbing through quota commands ───────────────────────
 
+
 def test_quota_increment_tenant_flag(tmp_path: Path, monkeypatch):
     """--tenant alice writes to alice's storage path."""
     monkeypatch.setenv("HOME", str(tmp_path))
     # Reset the tracker module to pick up the new HOME
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     result = runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai",
-         "--requests", "5", "--tokens", "100",
-         "--tenant", "alice"],
+        [
+            "quota",
+            "increment",
+            "--provider",
+            "openai",
+            "--requests",
+            "5",
+            "--tokens",
+            "100",
+            "--tenant",
+            "alice",
+        ],
     )
     assert result.exit_code == 0
 
@@ -40,12 +52,15 @@ def test_quota_show_two_tenants_isolated(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "10", "--tenant", "alice"])
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "3", "--tenant", "bob"])
+    runner.invoke(
+        app, ["quota", "increment", "--provider", "openai", "--requests", "10", "--tenant", "alice"]
+    )
+    runner.invoke(
+        app, ["quota", "increment", "--provider", "openai", "--requests", "3", "--tenant", "bob"]
+    )
 
     # Show alice
     result_alice = runner.invoke(app, ["quota", "show", "--tenant", "alice", "--json"])
@@ -65,12 +80,15 @@ def test_quota_reset_tenant_isolated(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "10", "--tenant", "alice"])
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "10", "--tenant", "bob"])
+    runner.invoke(
+        app, ["quota", "increment", "--provider", "openai", "--requests", "10", "--tenant", "alice"]
+    )
+    runner.invoke(
+        app, ["quota", "increment", "--provider", "openai", "--requests", "10", "--tenant", "bob"]
+    )
 
     # Reset alice only
     result = runner.invoke(
@@ -87,10 +105,12 @@ def test_quota_reset_tenant_isolated(tmp_path: Path, monkeypatch):
 
 # ── tenants subcommand ──────────────────────────────────────────────────
 
+
 def test_tenants_list_empty_initially(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     result = runner.invoke(app, ["tenants", "list"])
@@ -103,12 +123,17 @@ def test_tenants_list_after_create(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "1", "--tenant", "team_alpha"])
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "1", "--tenant", "team_beta"])
+    runner.invoke(
+        app,
+        ["quota", "increment", "--provider", "openai", "--requests", "1", "--tenant", "team_alpha"],
+    )
+    runner.invoke(
+        app,
+        ["quota", "increment", "--provider", "openai", "--requests", "1", "--tenant", "team_beta"],
+    )
 
     result = runner.invoke(app, ["tenants", "list", "--json"])
     assert result.exit_code == 0
@@ -132,12 +157,14 @@ def test_tenants_storage_path_rejects_invalid():
 
 # ── F-30-COSM1 regression: empty-quota messages render ──────────────────
 
+
 def test_empty_quota_message_renders_with_brackets(tmp_path: Path, monkeypatch):
     """The Rich-markup-swallowing bug: '[no usage recorded yet]' must
     appear in stdout (verbatim brackets), not be eaten as a style tag."""
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     result = runner.invoke(app, ["quota", "show"])
@@ -151,12 +178,15 @@ def test_empty_quota_with_since_message_renders(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
-    runner.invoke(app, ["quota", "increment", "--provider", "openai",
-                        "--requests", "1", "--tenant", "alice"])
+    runner.invoke(
+        app, ["quota", "increment", "--provider", "openai", "--requests", "1", "--tenant", "alice"]
+    )
     # Set the reset_at to 30 days ago so --since 1h filters it out
     from datetime import datetime, timedelta, timezone
+
     fp = tracker_mod.QuotaTracker.tenant_storage_path("alice")
     data = json.loads(fp.read_text())
     old = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat()

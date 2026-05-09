@@ -8,6 +8,7 @@ v6: populates WorkerResult.usage.cost_usd via swarm_shared.pricing;
 v8: StreamingHITLInterrupt caught in worker_node; collect_results_node
     signs each worker_result via _audit_helper.sign_and_record().
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -21,7 +22,7 @@ from ..llm import (
     estimate_call_cost,
     resolve_llm_settings,
 )
-from ..llm.dispatch import StreamingHITLInterrupt   # v8
+from ..llm.dispatch import StreamingHITLInterrupt  # v8
 from ..models.agent import AgentState, TokenUsage, WorkerResult
 from ..models.state import SwarmState
 
@@ -222,32 +223,39 @@ def collect_results_node(state: dict[str, Any]) -> dict[str, Any]:
         for r in swarm.worker_results
     )
 
-    swarm.append_history("consensus", {
-        "node": "collect_results",
-        "vote_count": len(new_votes),
-        "worker_count": len(swarm.worker_results),
-        "total_input_tokens": total_in,
-        "total_output_tokens": total_out,
-        "total_cost_usd": round(total_cost, 6),
-    })
+    swarm.append_history(
+        "consensus",
+        {
+            "node": "collect_results",
+            "vote_count": len(new_votes),
+            "worker_count": len(swarm.worker_results),
+            "total_input_tokens": total_in,
+            "total_output_tokens": total_out,
+            "total_cost_usd": round(total_cost, 6),
+        },
+    )
 
     # v8: sign each worker_result event (in collect_results_node where we
     # have full SwarmState). Each result is one signed audit record.
     for r in swarm.worker_results:
-        sign_and_record(swarm, "worker_result", {
-            "agent_id": r.agent_id,
-            "agent_role": r.agent_role,
-            "task_id": r.task_id,
-            "success": r.success,
-            "output_hash": r.output_hash,
-            "output_preview": (r.output or r.error_message)[:500],
-            "confidence": r.confidence,
-            "duration_seconds": r.duration_seconds,
-            "input_tokens": r.usage.input_tokens if r.usage else 0,
-            "output_tokens": r.usage.output_tokens if r.usage else 0,
-            "model_id_used": r.usage.model_id_used if r.usage else "",
-            "cost_usd": r.usage.cost_usd if r.usage else None,
-        })
+        sign_and_record(
+            swarm,
+            "worker_result",
+            {
+                "agent_id": r.agent_id,
+                "agent_role": r.agent_role,
+                "task_id": r.task_id,
+                "success": r.success,
+                "output_hash": r.output_hash,
+                "output_preview": (r.output or r.error_message)[:500],
+                "confidence": r.confidence,
+                "duration_seconds": r.duration_seconds,
+                "input_tokens": r.usage.input_tokens if r.usage else 0,
+                "output_tokens": r.usage.output_tokens if r.usage else 0,
+                "model_id_used": r.usage.model_id_used if r.usage else "",
+                "cost_usd": r.usage.cost_usd if r.usage else None,
+            },
+        )
 
     swarm.touch()
     out = swarm.to_json_dict()

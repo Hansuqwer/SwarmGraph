@@ -1,4 +1,5 @@
 """Router tests — verifies F-14A word-boundary fix."""
+
 import pytest
 from swarm.nodes.router import estimate_complexity
 

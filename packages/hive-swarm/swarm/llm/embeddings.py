@@ -17,6 +17,7 @@ v7 adds:
     else HashEmbedder() — so a process can call this once at startup and
     get the best available embedder without manual configuration.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -31,11 +32,13 @@ from typing import Any, Iterable, Optional, Protocol
 
 # ── Protocol ─────────────────────────────────────────────────────────────
 
+
 class EmbeddingProvider(Protocol):
     def embed(self, text: str) -> list[float]: ...
 
 
 # ── Null ────────────────────────────────────────────────────────────────
+
 
 class NullEmbedder:
     def embed(self, text: str) -> list[float]:
@@ -46,6 +49,7 @@ class NullEmbedder:
 
 
 # ── HashEmbedder (v6, unchanged) ─────────────────────────────────────────
+
 
 class HashEmbedder:
     DIMS = 32
@@ -72,6 +76,7 @@ class HashEmbedder:
 
 # ── GatewayEmbedder (v6, unchanged) ──────────────────────────────────────
 
+
 class GatewayEmbedder:
     def __init__(
         self,
@@ -93,6 +98,7 @@ class GatewayEmbedder:
                 self._adapter = self._adapter_factory(self.provider_id)
             else:
                 from ai_provider_swarm_gateway.graph.nodes import _get_adapter  # type: ignore
+
                 self._adapter = _get_adapter(self.provider_id)
         except Exception:
             self._adapter = None
@@ -159,7 +165,9 @@ class _EmbeddingsHttpClient:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
+        req = urllib.request.Request(
+            url=_validate_http_url(url), data=body, headers=headers, method="POST"
+        )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8", errors="replace")
@@ -168,9 +176,7 @@ class _EmbeddingsHttpClient:
             raw = e.read().decode("utf-8", errors="replace") if e.fp else ""
             return e.code, raw
         except urllib.error.URLError as e:
-            raise ConnectionError(
-                f"OpenAI embeddings unreachable at {url}: {e.reason}"
-            ) from e
+            raise ConnectionError(f"OpenAI embeddings unreachable at {url}: {e.reason}") from e
 
 
 class OpenAIEmbeddingAdapter:
@@ -235,7 +241,9 @@ class OpenAIEmbeddingAdapter:
         payload = {"model": self.model, "input": text}
         try:
             status, raw = self._http.post_json(
-                self.endpoint, payload, api_key=api_key,
+                self.endpoint,
+                payload,
+                api_key=api_key,
                 timeout=self.timeout_seconds,
             )
         except ConnectionError:
@@ -320,6 +328,7 @@ class SentenceTransformerEmbedder:
 
 
 # ── Cosine similarity (no numpy) ─────────────────────────────────────────
+
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):

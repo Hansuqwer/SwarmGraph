@@ -5,6 +5,7 @@ the analysis trace) so they don't need real API keys. If the gateway was not
 fully vendored on this machine, route-specific tests xfail with a clear
 reason instead of crashing.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,10 +21,12 @@ runner = CliRunner()
 
 # ── Detect whether the upstream gateway is fully vendored ────────────────
 
+
 def _gateway_fully_vendored() -> bool:
     try:
         from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
         from ai_provider_swarm_gateway.graph.builder import build_gateway_graph  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -34,6 +37,7 @@ SKIP_REASON = "upstream gateway not fully vendored (RR1 incomplete)"
 
 
 # ── inspect-state always works (degrades gracefully) ─────────────────────
+
 
 def test_inspect_state_runs_or_explains():
     result = runner.invoke(app, ["inspect-state"])
@@ -58,18 +62,20 @@ def test_inspect_state_json():
 
 # ── route — happy paths via mock adapter ─────────────────────────────────
 
+
 @pytest.mark.skipif(not GATEWAY_OK, reason=SKIP_REASON)
 def test_route_with_mock_provider_dry_run():
     """Hint the mock adapter; --dry-run skips the actual provider call."""
     result = runner.invoke(
         app,
-        ["route", "--prompt", "say hi", "--preferred", "mock",
-         "--dry-run", "--json"],
+        ["route", "--prompt", "say hi", "--preferred", "mock", "--dry-run", "--json"],
     )
     # dry-run with mock should at least classify and select; exit codes:
     # 0 = success, 4 = no provider selected (fine for dry-run if so)
     assert result.exit_code in (0, 4)
-    payload = json.loads(result.stdout.strip().split("\n")[-1] if "{" in result.stdout else result.stdout)
+    payload = json.loads(
+        result.stdout.strip().split("\n")[-1] if "{" in result.stdout else result.stdout
+    )
     assert payload["thread_id"].startswith("cli-")
     assert payload["prompt"] == "say hi"
 
@@ -79,13 +85,12 @@ def test_route_capability_inference():
     """When --capability omitted, classify_request_node infers chat by default."""
     result = runner.invoke(
         app,
-        ["route", "--prompt", "hello world", "--preferred", "mock",
-         "--dry-run", "--json"],
+        ["route", "--prompt", "hello world", "--preferred", "mock", "--dry-run", "--json"],
     )
     assert result.exit_code in (0, 4)
     # Either way, the JSON should parse and include candidate_providers list
     out = result.stdout.strip()
-    last_json_line = out[out.find("{"):]
+    last_json_line = out[out.find("{") :]
     payload = json.loads(last_json_line)
     assert "candidate_providers" in payload
 
@@ -95,12 +100,21 @@ def test_route_thread_id_propagates():
     custom_tid = "test-tid-explicit-12345"
     result = runner.invoke(
         app,
-        ["route", "--prompt", "x", "--preferred", "mock",
-         "--thread-id", custom_tid, "--dry-run", "--json"],
+        [
+            "route",
+            "--prompt",
+            "x",
+            "--preferred",
+            "mock",
+            "--thread-id",
+            custom_tid,
+            "--dry-run",
+            "--json",
+        ],
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json_line = out[out.find("{"):]
+    last_json_line = out[out.find("{") :]
     payload = json.loads(last_json_line)
     assert payload["thread_id"] == custom_tid
 
@@ -109,8 +123,7 @@ def test_route_thread_id_propagates():
 def test_route_show_audit_includes_audit_log():
     result = runner.invoke(
         app,
-        ["route", "--prompt", "x", "--preferred", "mock",
-         "--dry-run", "--json", "--show-audit"],
+        ["route", "--prompt", "x", "--preferred", "mock", "--dry-run", "--json", "--show-audit"],
     )
     assert result.exit_code in (0, 4)
     # show-audit emits a second JSON object with audit_log key
@@ -118,6 +131,7 @@ def test_route_show_audit_includes_audit_log():
 
 
 # ── route — failure mode: missing required upstream module ───────────────
+
 
 def test_route_explains_when_gateway_missing(monkeypatch):
     """If the import resolution fails, route should exit 2 with an actionable message."""
@@ -139,6 +153,7 @@ def test_route_explains_when_gateway_missing(monkeypatch):
 
 
 # ── providers list — registry shape (regression for the YAML-shape fix) ─
+
 
 def test_providers_list_handles_upstream_yaml_shape():
     """Regression: upstream uses {providers: [...]} not bare list."""

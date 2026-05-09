@@ -12,6 +12,7 @@ Why dict not AuditRecord:
     module. Storing as dict keeps the cross-package boundary clean and
     matches the existing `worker_results` / `history` patterns.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -245,9 +246,7 @@ class SwarmState(HardenedModel):
         producing the signed dict via swarm_shared.audit.sign_record(). This
         method just appends it to state and updates head/sequence trackers.
         """
-        self.audit_records = cap_list(
-            self.audit_records + [record_dict], _AUDIT_RECORDS_CFG
-        )
+        self.audit_records = cap_list(self.audit_records + [record_dict], _AUDIT_RECORDS_CFG)
         self.audit_chain_head = str(record_dict.get("record_hash", ""))
         self.audit_sequence = int(record_dict.get("sequence", self.audit_sequence)) + 1
 
@@ -265,9 +264,7 @@ class SwarmState(HardenedModel):
 
     def register_agent(self, spec: AgentSpec) -> None:
         if len(self.agents) >= self.config.max_agents:
-            raise ValueError(
-                f"Cannot register more than {self.config.max_agents} agents"
-            )
+            raise ValueError(f"Cannot register more than {self.config.max_agents} agents")
         self.agents = self.agents + [spec]
 
     def collect_vote(self, vote: AgentVote) -> None:
@@ -313,6 +310,7 @@ class SwarmState(HardenedModel):
 
 class SwarmCheckpoint(HardenedModel):
     """Serializable point-in-time snapshot."""
+
     checkpoint_id: str = Field(..., min_length=1)
     swarm_id: str
     objective_hash: str

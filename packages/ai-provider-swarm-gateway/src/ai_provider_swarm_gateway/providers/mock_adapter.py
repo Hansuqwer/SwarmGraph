@@ -2,6 +2,7 @@
 Mock provider adapter — deterministic, simulates quota, supports failure injection.
 Used in all tests. No credentials required.
 """
+
 from __future__ import annotations
 
 from ..models.state import GatewayResponse
@@ -17,7 +18,7 @@ class MockAdapter(ProviderAdapter):
     - Simulates token usage
     """
 
-    provider_id   = "mock"
+    provider_id = "mock"
     default_model = "mock-model-v1"
 
     def __init__(
@@ -27,9 +28,9 @@ class MockAdapter(ProviderAdapter):
         response_prefix: str = "[MOCK]",
     ) -> None:
         self.simulate_failure = simulate_failure
-        self.failure_message  = failure_message
-        self.response_prefix  = response_prefix
-        self._call_count      = 0
+        self.failure_message = failure_message
+        self.response_prefix = response_prefix
+        self._call_count = 0
 
     def is_configured(self) -> bool:
         return True
@@ -39,8 +40,7 @@ class MockAdapter(ProviderAdapter):
         if self.simulate_failure:
             return self._error_response(self.failure_message)
         response_text = (
-            f"{self.response_prefix} Response to: '{prompt[:50]}...' "
-            f"(call #{self._call_count})"
+            f"{self.response_prefix} Response to: '{prompt[:50]}...' (call #{self._call_count})"
         )
         return GatewayResponse(
             provider_id=self.provider_id,

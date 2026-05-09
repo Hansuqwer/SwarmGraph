@@ -5,6 +5,7 @@ On POSIX: os.replace is atomic for files on the same filesystem.
 On Windows: os.replace is atomic since Python 3.3 (uses MoveFileEx with
 MOVEFILE_REPLACE_EXISTING).
 """
+
 from __future__ import annotations
 
 import json

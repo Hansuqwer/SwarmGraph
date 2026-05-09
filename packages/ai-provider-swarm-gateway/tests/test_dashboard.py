@@ -16,12 +16,14 @@ runner = CliRunner()
 def test_load_consensus_history_skips_bad_lines(tmp_path: Path):
     path = tmp_path / "consensus_history.jsonl"
     path.write_text(
-        "\n".join([
-            json.dumps({"swarm_id": "s1", "agreement": 0.5, "protocol": "raft"}),
-            "not-json",
-            json.dumps(["not", "dict"]),
-            json.dumps({"swarm_id": "s2", "agreement_fraction": 0.75, "protocol": "bft"}),
-        ]),
+        "\n".join(
+            [
+                json.dumps({"swarm_id": "s1", "agreement": 0.5, "protocol": "raft"}),
+                "not-json",
+                json.dumps(["not", "dict"]),
+                json.dumps({"swarm_id": "s2", "agreement_fraction": 0.75, "protocol": "bft"}),
+            ]
+        ),
         encoding="utf-8",
     )
 
@@ -43,10 +45,12 @@ def test_load_consensus_history_limits_to_last_n(tmp_path: Path):
 
 
 def test_build_agreement_plot_returns_text():
-    plot = build_agreement_plot([
-        {"swarm_id": "s1", "agreement": 0.25},
-        {"swarm_id": "s2", "agreement_fraction": 0.75},
-    ])
+    plot = build_agreement_plot(
+        [
+            {"swarm_id": "s1", "agreement": 0.25},
+            {"swarm_id": "s2", "agreement_fraction": 0.75},
+        ]
+    )
 
     assert "Consensus Agreement Trend" in plot
 
@@ -82,9 +86,16 @@ def test_dashboard_command_calls_show_dashboard(monkeypatch, tmp_path: Path):
     history_path = tmp_path / "history.jsonl"
     storage = tmp_path / "usage.json"
 
-    result = runner.invoke(app, [
-        "dashboard", "--history-path", str(history_path), "--storage", str(storage),
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "dashboard",
+            "--history-path",
+            str(history_path),
+            "--storage",
+            str(storage),
+        ],
+    )
 
     assert result.exit_code == 0
     assert called == {"history_path": history_path, "storage": storage}

@@ -1,4 +1,5 @@
 """SQLite-backed response cache with optional vector similarity lookup."""
+
 from __future__ import annotations
 
 import json

@@ -1,4 +1,5 @@
 """Model tests."""
+
 import pytest
 from pydantic import ValidationError
 
@@ -31,14 +32,20 @@ def test_worker_result_success_requires_output():
 
 def test_worker_result_failure_requires_error():
     with pytest.raises(ValidationError):
-        WorkerResult(agent_id="a1", agent_role="coder", task_id="t1", success=False, error_message="")
+        WorkerResult(
+            agent_id="a1", agent_role="coder", task_id="t1", success=False, error_message=""
+        )
 
 
 def test_worker_result_recomputes_output_hash():
     """F-07A: caller-provided hash is overwritten."""
     r = WorkerResult(
-        agent_id="a1", agent_role="coder", task_id="t1",
-        success=True, output="hello", output_hash="WRONG_HASH",
+        agent_id="a1",
+        agent_role="coder",
+        task_id="t1",
+        success=True,
+        output="hello",
+        output_hash="WRONG_HASH",
     )
     assert r.output_hash != "WRONG_HASH"
     assert len(r.output_hash) == 16

@@ -1,12 +1,14 @@
 """Zhipu GLM adapter stub — requires ZHIPU_GLM_API_KEY."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class GLMAdapter(ProviderAdapter):
-    provider_id   = "zhipu_glm"
+    provider_id = "zhipu_glm"
     default_model = "glm-4-flash"
-    _base_url     = "https://open.bigmodel.cn/api/paas/v4"
+    _base_url = "https://open.bigmodel.cn/api/paas/v4"
 
     def is_configured(self) -> bool:
         return bool(self._get_env("ZHIPU_GLM_API_KEY"))
@@ -16,7 +18,10 @@ class GLMAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import openai
-            client = openai.OpenAI(api_key=self._get_env("ZHIPU_GLM_API_KEY"), base_url=self._base_url)
+
+            client = openai.OpenAI(
+                api_key=self._get_env("ZHIPU_GLM_API_KEY"), base_url=self._base_url
+            )
             resp = client.chat.completions.create(
                 model=model or self.default_model,
                 messages=[{"role": "user", "content": prompt}],

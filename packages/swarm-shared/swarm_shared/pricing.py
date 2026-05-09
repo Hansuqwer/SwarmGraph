@@ -13,6 +13,7 @@ Lookup is best-effort: returns None on miss rather than raising. This means
 free providers (9router, mock, ollama) and unknown model ids both surface as
 "unpriced" — caller decides how to display (we render "—" in CLI).
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ from typing import Any, Optional
 @dataclass(frozen=True)
 class PricingEntry:
     """USD per 1,000 tokens. Negative = free (sentinel)."""
+
     model_id: str
     input_per_1k: float
     output_per_1k: float
@@ -45,6 +47,7 @@ class PricingTable:
       3. Prefix match on the part before the first `/` (provider hint)
       4. Returns None
     """
+
     entries: dict[str, PricingEntry] = field(default_factory=dict)
 
     def lookup(self, model_id: str) -> Optional[PricingEntry]:
@@ -76,9 +79,8 @@ class PricingTable:
             return None
         if entry.is_free:
             return 0.0
-        cost = (
-            entry.input_per_1k * (input_tokens / 1000.0)
-            + entry.output_per_1k * (output_tokens / 1000.0)
+        cost = entry.input_per_1k * (input_tokens / 1000.0) + entry.output_per_1k * (
+            output_tokens / 1000.0
         )
         return round(cost, 6)
 
@@ -141,7 +143,9 @@ _OTHER: list[PricingEntry] = [
     PricingEntry("zhipu_glm/*", 0.0, 0.0, "free tier"),
     PricingEntry("moonshot_kimi/*", 0.0, 0.0, "free tier"),
     PricingEntry("qwen/*", 0.0, 0.0, "free tier"),
-    PricingEntry("openrouter/*", -1.0, -1.0, "openrouter prices vary per route; lookup miss expected"),
+    PricingEntry(
+        "openrouter/*", -1.0, -1.0, "openrouter prices vary per route; lookup miss expected"
+    ),
 ]
 
 
@@ -166,9 +170,7 @@ def estimate_cost(
     table: Optional[PricingTable] = None,
 ) -> Optional[float]:
     """Convenience wrapper around the default table."""
-    return (table or DEFAULT_PRICING_TABLE).estimate_cost(
-        model_id, input_tokens, output_tokens
-    )
+    return (table or DEFAULT_PRICING_TABLE).estimate_cost(model_id, input_tokens, output_tokens)
 
 
 __all__ = [

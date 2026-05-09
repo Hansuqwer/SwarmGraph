@@ -1,4 +1,5 @@
 """Tests for NineRouterAdapter.chat_stream — no live network."""
+
 import pytest
 
 from ai_provider_swarm_gateway.providers.nine_router_adapter import (
@@ -9,6 +10,7 @@ from ai_provider_swarm_gateway.providers.nine_router_adapter import (
 
 
 # ── _parse_sse_data_line ─────────────────────────────────────────────────
+
 
 def test_parse_data_line_with_json():
     line = 'data: {"choices": [{"delta": {"content": "hi"}}]}'
@@ -32,12 +34,13 @@ def test_parse_data_line_invalid_json_returns_none():
 
 
 def test_parse_data_line_with_leading_whitespace():
-    line = "data:    {\"choices\": [{\"delta\": {\"content\": \"x\"}}]}"
+    line = 'data:    {"choices": [{"delta": {"content": "x"}}]}'
     event = _parse_sse_data_line(line)
     assert event is not None
 
 
 # ── _stream_event_to_chunk ───────────────────────────────────────────────
+
 
 def test_event_to_chunk_extracts_content():
     event = {"choices": [{"delta": {"content": "hello"}, "finish_reason": None}]}
@@ -66,6 +69,7 @@ def test_event_to_chunk_handles_no_choices():
 
 # ── chat_stream end-to-end with mocked HTTP ──────────────────────────────
 
+
 class _FakeStreamingHttp:
     """Yields canned SSE lines."""
 
@@ -84,12 +88,14 @@ class _FakeStreamingHttp:
 
 
 def test_chat_stream_yields_chunks():
-    http = _FakeStreamingHttp(lines=[
-        'data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}',
-        'data: {"choices":[{"delta":{"content":" world"},"finish_reason":null}]}',
-        'data: {"choices":[{"delta":{"content":"!"},"finish_reason":"stop"}]}',
-        'data: [DONE]',
-    ])
+    http = _FakeStreamingHttp(
+        lines=[
+            'data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}',
+            'data: {"choices":[{"delta":{"content":" world"},"finish_reason":null}]}',
+            'data: {"choices":[{"delta":{"content":"!"},"finish_reason":"stop"}]}',
+            "data: [DONE]",
+        ]
+    )
     adapter = NineRouterAdapter(api_key="test-key", http_client=http)
     chunks = list(adapter.chat_stream(prompt="say hi"))
     assert [c["delta"] for c in chunks] == ["Hello", " world", "!"]
@@ -97,12 +103,14 @@ def test_chat_stream_yields_chunks():
 
 
 def test_chat_stream_skips_pings_and_done():
-    http = _FakeStreamingHttp(lines=[
-        '',
-        ': ping',
-        'data: {"choices":[{"delta":{"content":"x"},"finish_reason":null}]}',
-        'data: [DONE]',
-    ])
+    http = _FakeStreamingHttp(
+        lines=[
+            "",
+            ": ping",
+            'data: {"choices":[{"delta":{"content":"x"},"finish_reason":null}]}',
+            "data: [DONE]",
+        ]
+    )
     adapter = NineRouterAdapter(api_key="k", http_client=http)
     chunks = list(adapter.chat_stream(prompt="hi"))
     assert len(chunks) == 1
@@ -110,19 +118,23 @@ def test_chat_stream_skips_pings_and_done():
 
 
 def test_chat_stream_sends_stream_true_in_payload():
-    http = _FakeStreamingHttp(lines=['data: [DONE]'])
+    http = _FakeStreamingHttp(lines=["data: [DONE]"])
     adapter = NineRouterAdapter(api_key="k", http_client=http)
     list(adapter.chat_stream(prompt="hi"))
     assert http.calls[0]["payload"]["stream"] is True
 
 
 def test_chat_stream_passes_messages_correctly():
-    http = _FakeStreamingHttp(lines=['data: [DONE]'])
+    http = _FakeStreamingHttp(lines=["data: [DONE]"])
     adapter = NineRouterAdapter(api_key="k", http_client=http)
-    list(adapter.chat_stream(messages=[
-        {"role": "system", "content": "be terse"},
-        {"role": "user", "content": "ping?"},
-    ]))
+    list(
+        adapter.chat_stream(
+            messages=[
+                {"role": "system", "content": "be terse"},
+                {"role": "user", "content": "ping?"},
+            ]
+        )
+    )
     assert http.calls[0]["payload"]["messages"] == [
         {"role": "system", "content": "be terse"},
         {"role": "user", "content": "ping?"},
@@ -131,8 +143,14 @@ def test_chat_stream_passes_messages_correctly():
 
 def test_chat_stream_without_api_key_raises():
     import os
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         os.environ.pop(name, None)
     http = _FakeStreamingHttp(lines=[])
     adapter = NineRouterAdapter(http_client=http)
@@ -149,10 +167,12 @@ def test_chat_stream_handles_empty_stream():
 
 def test_chat_stream_handles_multiline_with_carriage_returns():
     """Real SSE often uses \\r\\n; the adapter should handle both."""
-    http = _FakeStreamingHttp(lines=[
-        'data: {"choices":[{"delta":{"content":"a"},"finish_reason":null}]}\r',
-        'data: [DONE]\r',
-    ])
+    http = _FakeStreamingHttp(
+        lines=[
+            'data: {"choices":[{"delta":{"content":"a"},"finish_reason":null}]}\r',
+            "data: [DONE]\r",
+        ]
+    )
     adapter = NineRouterAdapter(api_key="k", http_client=http)
     chunks = list(adapter.chat_stream(prompt="x"))
     # Should still parse

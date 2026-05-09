@@ -1,4 +1,5 @@
 """Tests for swarm_shared.pricing."""
+
 import json
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from swarm_shared.pricing import (
 
 # ── PricingEntry ─────────────────────────────────────────────────────────
 
+
 def test_entry_is_free_when_both_zero():
     e = PricingEntry("free-model", 0.0, 0.0)
     assert e.is_free
@@ -25,6 +27,7 @@ def test_entry_not_free_when_priced():
 
 
 # ── Lookup precedence ────────────────────────────────────────────────────
+
 
 def test_lookup_exact_match():
     e = DEFAULT_PRICING_TABLE.lookup("claude-opus-4-7")
@@ -58,6 +61,7 @@ def test_lookup_empty_returns_none():
 
 
 # ── Cost estimation ──────────────────────────────────────────────────────
+
 
 def test_estimate_cost_free_model():
     cost = estimate_cost("kc/kilo-auto/free", 10_000, 20_000)
@@ -101,6 +105,7 @@ def test_estimate_cost_rounded_6_decimals():
 
 # ── Table construction ──────────────────────────────────────────────────
 
+
 def test_from_dict_round_trip():
     raw = {
         "entries": {
@@ -116,11 +121,15 @@ def test_from_dict_round_trip():
 
 def test_from_json_file(tmp_path: Path):
     fp = tmp_path / "pricing.json"
-    fp.write_text(json.dumps({
-        "entries": {
-            "custom/model": {"input_per_1k": 0.02, "output_per_1k": 0.08},
-        }
-    }))
+    fp.write_text(
+        json.dumps(
+            {
+                "entries": {
+                    "custom/model": {"input_per_1k": 0.02, "output_per_1k": 0.08},
+                }
+            }
+        )
+    )
     t = PricingTable.from_json_file(fp)
     cost = t.estimate_cost("custom/model", 1000, 1000)
     assert cost == pytest.approx(0.10)
@@ -140,11 +149,13 @@ def test_default_table_includes_free_providers():
 
 
 def test_custom_table_override_via_estimate_cost():
-    custom = PricingTable.from_dict({
-        "entries": {
-            "claude-opus-4-7": {"input_per_1k": 0.001, "output_per_1k": 0.002},
+    custom = PricingTable.from_dict(
+        {
+            "entries": {
+                "claude-opus-4-7": {"input_per_1k": 0.001, "output_per_1k": 0.002},
+            }
         }
-    })
+    )
     # Default would compute $0.0175; custom gives $0.002
     default_cost = estimate_cost("claude-opus-4-7", 1000, 500)
     custom_cost = estimate_cost("claude-opus-4-7", 1000, 500, table=custom)

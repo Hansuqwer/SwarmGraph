@@ -1,4 +1,5 @@
 """Tests for swarm_shared.bounded_list."""
+
 import pytest
 from pydantic import BaseModel, Field, field_validator
 
@@ -27,8 +28,8 @@ def test_cap_list_head_plus_tail_keeps_first_and_last():
     items = list(range(100))
     cfg = CappedListConfig(max_len=10, keep_strategy="head_plus_tail")
     out = cap_list(items, cfg)
-    assert out[0] == 0      # original first preserved
-    assert out[-1] == 99    # most recent preserved
+    assert out[0] == 0  # original first preserved
+    assert out[-1] == 99  # most recent preserved
     assert len(out) == 10
 
 

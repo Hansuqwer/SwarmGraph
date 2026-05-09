@@ -12,6 +12,7 @@ Preserves v6 surface:
   version, quota show/increment/reset/set-reset, providers list (filters,
   --since), inspect-state, route, swarm with --stream and --anti-drift.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,11 +32,14 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.markup import escape as _rich_escape
+
     _HAS_RICH = True
 except ImportError:  # pragma: no cover
     _HAS_RICH = False
+
     def _rich_escape(s: str) -> str:
         return s
+
 
 from .quota.tracker import QuotaTracker
 
@@ -47,9 +51,15 @@ app = typer.Typer(
 )
 
 quota_app = typer.Typer(name="quota", help="Local quota tracking.", no_args_is_help=True)
-providers_app = typer.Typer(name="providers", help="Provider registry inspection.", no_args_is_help=True)
-tenants_app = typer.Typer(name="tenants", help="Multi-tenant quota management.", no_args_is_help=True)
-pool_app = typer.Typer(name="pool", help="Encrypted account vault management.", no_args_is_help=True)
+providers_app = typer.Typer(
+    name="providers", help="Provider registry inspection.", no_args_is_help=True
+)
+tenants_app = typer.Typer(
+    name="tenants", help="Multi-tenant quota management.", no_args_is_help=True
+)
+pool_app = typer.Typer(
+    name="pool", help="Encrypted account vault management.", no_args_is_help=True
+)
 auth_app = typer.Typer(name="auth", help="Opt-in auth helpers.", no_args_is_help=True)
 audit_app = typer.Typer(
     name="audit",
@@ -67,6 +77,7 @@ _console = Console() if _HAS_RICH else None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _resolve_storage_path(custom: Optional[Path], tenant: Optional[str] = None) -> Optional[Path]:
     """Return the storage path; None means 'let QuotaTracker decide from tenant_id or env'."""
@@ -123,9 +134,7 @@ _DURATION_RE = re.compile(r"^(\d+)\s*([smhd])$")
 def _parse_duration_to_seconds(s: str) -> int:
     m = _DURATION_RE.match(s.strip().lower())
     if not m:
-        raise ValueError(
-            f"invalid duration {s!r}; use Ns | Nm | Nh | Nd (e.g. '30m', '1h', '7d')"
-        )
+        raise ValueError(f"invalid duration {s!r}; use Ns | Nm | Nh | Nd (e.g. '30m', '1h', '7d')")
     n = int(m.group(1))
     unit = m.group(2)
     return n * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
@@ -150,6 +159,7 @@ def _load_s3_audit_backend_class():
 
 # ── version ────────────────────────────────────────────────────────────────
 
+
 @app.command()
 def version() -> None:
     """Print package versions."""
@@ -161,8 +171,14 @@ def version() -> None:
 
     rows = []
     for name in (
-        "ai-provider-swarm-gateway", "swarm-shared", "hive-swarm",
-        "pydantic", "langgraph", "typer", "rich", "pyyaml",
+        "ai-provider-swarm-gateway",
+        "swarm-shared",
+        "hive-swarm",
+        "pydantic",
+        "langgraph",
+        "typer",
+        "rich",
+        "pyyaml",
     ):
         try:
             rows.append((name, _v(name)))
@@ -171,7 +187,8 @@ def version() -> None:
 
     if _HAS_RICH and _console:
         t = Table(title="Versions")
-        t.add_column("Package"); t.add_column("Version")
+        t.add_column("Package")
+        t.add_column("Version")
         for n, v in rows:
             t.add_row(n, v)
         _console.print(t)
@@ -182,12 +199,15 @@ def version() -> None:
 
 # ── quota subcommands ─────────────────────────────────────────────────────
 
+
 @quota_app.command("show")
 def quota_show(
     provider: Optional[str] = typer.Option(None, "--provider", "-p"),
     window: str = typer.Option("daily", "--window", "-w"),
     storage: Optional[Path] = typer.Option(None, "--storage"),
-    tenant: Optional[str] = typer.Option(None, "--tenant", help="v7: tenant id for multi-tenant isolation"),
+    tenant: Optional[str] = typer.Option(
+        None, "--tenant", help="v7: tenant id for multi-tenant isolation"
+    ),
     since: Optional[str] = typer.Option(None, "--since"),
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
@@ -238,7 +258,8 @@ def quota_show(
     if json_output:
         payload = [
             {
-                "provider": pid, "window": win,
+                "provider": pid,
+                "window": win,
                 "tenant": tracker.tenant_id,
                 "used_requests": u.used_requests,
                 "used_tokens": u.used_tokens,
@@ -256,12 +277,19 @@ def quota_show(
         if cutoff:
             title_parts.append(f"since {since}")
         t = Table(title=" — ".join(title_parts))
-        t.add_column("Provider"); t.add_column("Window")
-        t.add_column("Requests", justify="right"); t.add_column("Tokens", justify="right")
+        t.add_column("Provider")
+        t.add_column("Window")
+        t.add_column("Requests", justify="right")
+        t.add_column("Tokens", justify="right")
         t.add_column("Reset at")
         for pid, win, u in rows:
-            t.add_row(pid, win, str(u.used_requests), str(u.used_tokens),
-                      u.reset_at.isoformat() if u.reset_at else "—")
+            t.add_row(
+                pid,
+                win,
+                str(u.used_requests),
+                str(u.used_tokens),
+                u.reset_at.isoformat() if u.reset_at else "—",
+            )
         _console.print(t)
     else:
         print(f"# storage: {tracker.storage_path}")
@@ -269,7 +297,9 @@ def quota_show(
             print(f"# tenant:  {tracker.tenant_id}")
         for pid, win, u in rows:
             reset = u.reset_at.isoformat() if u.reset_at else "—"
-            print(f"{pid:20s} {win:8s} req={u.used_requests:8d} tok={u.used_tokens:10d} reset={reset}")
+            print(
+                f"{pid:20s} {win:8s} req={u.used_requests:8d} tok={u.used_tokens:10d} reset={reset}"
+            )
 
 
 @quota_app.command("increment")
@@ -287,7 +317,9 @@ def quota_increment(
     tracker = _build_tracker(storage, tenant)
     new_usage = tracker.increment(provider, requests=requests, tokens=tokens, window=window)
     tenant_label = f" tenant={tracker.tenant_id}" if tracker.tenant_id else ""
-    _print(f"✅ {provider} ({window}){tenant_label}: requests={new_usage.used_requests}, tokens={new_usage.used_tokens}")
+    _print(
+        f"✅ {provider} ({window}){tenant_label}: requests={new_usage.used_requests}, tokens={new_usage.used_tokens}"
+    )
 
 
 @quota_app.command("reset")
@@ -325,6 +357,7 @@ def quota_set_reset(
 
 # ── tenants subcommands (v7 NEW) ─────────────────────────────────────────
 
+
 @tenants_app.command("list")
 def tenants_list(
     json_output: bool = typer.Option(False, "--json"),
@@ -351,6 +384,7 @@ def tenants_storage_path(
 
 
 # ── encrypted account pool subcommands ──────────────────────────────────
+
 
 @pool_app.command("init")
 def pool_init(
@@ -462,6 +496,7 @@ def pool_sync(
 
 # ── auth subcommands ────────────────────────────────────────────────────
 
+
 @auth_app.command("import-browser")
 def auth_import_browser(
     provider: str = typer.Argument(..., help="Provider: chatgpt, qwen, or kimi."),
@@ -520,6 +555,7 @@ def auth_import_browser(
 
 # ── providers subcommands (unchanged from v6) ────────────────────────────
 
+
 def _try_load_registry() -> Optional[list[dict]]:
     here = Path(__file__).resolve().parent
     candidates = [here / "registry" / "providers.yaml", here / "registry" / "providers.json"]
@@ -569,11 +605,13 @@ def providers_list(
     if capability:
         registry = [p for p in registry if capability in (p.get("capabilities") or [])]
     if free_only:
+
         def _is_free(p: dict) -> bool:
             if p.get("is_local"):
                 return True
             quota = p.get("quota") or {}
             return bool(quota.get("free_daily_usage")) or bool(p.get("free"))
+
         registry = [p for p in registry if _is_free(p)]
 
     if json_output:
@@ -582,8 +620,10 @@ def providers_list(
 
     if _HAS_RICH and _console:
         t = Table(title=f"Providers ({len(registry)})")
-        t.add_column("ID"); t.add_column("Name")
-        t.add_column("Capabilities"); t.add_column("Local?")
+        t.add_column("ID")
+        t.add_column("Name")
+        t.add_column("Capabilities")
+        t.add_column("Local?")
         t.add_column("Free tier")
         for p in registry:
             quota = p.get("quota") or {}
@@ -615,6 +655,7 @@ _MISSING_GATEWAY_MSG = (
 def _import_gateway_pieces():
     from .models.state import GatewayState  # type: ignore
     from .graph.builder import build_gateway_graph  # type: ignore
+
     try:
         from .models.state import RoutingDecision  # type: ignore
     except Exception:
@@ -669,8 +710,11 @@ def route(
 
     try:
         state = _build_initial_state(
-            GatewayState, prompt=prompt, capability=capability,
-            preferred=preferred, allow_unknown_quota=allow_unknown_quota,
+            GatewayState,
+            prompt=prompt,
+            capability=capability,
+            preferred=preferred,
+            allow_unknown_quota=allow_unknown_quota,
         )
     except Exception as e:
         _err(f"❌ Could not construct GatewayState: {e}")
@@ -691,7 +735,11 @@ def route(
     tid = thread_id or f"cli-{uuid.uuid4().hex[:12]}"
 
     try:
-        init_payload = state.to_json_dict() if hasattr(state, "to_json_dict") else state.model_dump(mode="json")
+        init_payload = (
+            state.to_json_dict()
+            if hasattr(state, "to_json_dict")
+            else state.model_dump(mode="json")
+        )
         try:
             result = graph.invoke(init_payload, config={"configurable": {"thread_id": tid}})
         except TypeError:
@@ -710,8 +758,12 @@ def route(
         final_state = result
 
     selected = _extract_field(
-        final_state, "selected_provider_id", "chosen_provider_id",
-        "winning_provider_id", "routing_decision", default=None,
+        final_state,
+        "selected_provider_id",
+        "chosen_provider_id",
+        "winning_provider_id",
+        "routing_decision",
+        default=None,
     )
     if hasattr(selected, "provider_id"):
         selected = selected.provider_id
@@ -720,8 +772,13 @@ def route(
 
     candidates = _extract_field(final_state, "candidate_providers", default=[])
     response_text = _extract_field(
-        final_state, "response_text", "final_response", "response",
-        "validated_response", "provider_response", default="",
+        final_state,
+        "response_text",
+        "final_response",
+        "response",
+        "validated_response",
+        "provider_response",
+        default="",
     )
     if hasattr(response_text, "content"):
         response_text = response_text.content
@@ -735,11 +792,17 @@ def route(
 
     if json_output:
         payload = {
-            "thread_id": tid, "prompt": prompt, "capability": capability,
+            "thread_id": tid,
+            "prompt": prompt,
+            "capability": capability,
             "is_safe_to_proceed": bool(is_safe),
             "candidate_providers": list(candidates) if candidates else [],
-            "selected_provider": selected if isinstance(selected, str) else (str(selected) if selected else None),
-            "response_text": response_text if isinstance(response_text, str) else str(response_text or ""),
+            "selected_provider": selected
+            if isinstance(selected, str)
+            else (str(selected) if selected else None),
+            "response_text": response_text
+            if isinstance(response_text, str)
+            else str(response_text or ""),
             "errors": list(errors) if errors else [],
             "policy_violations": list(policy_violations) if policy_violations else [],
             "audit_log_lines": len(audit_log) if audit_log else 0,
@@ -765,9 +828,13 @@ def route(
         if response_text:
             _console.print(Panel(_rich_escape(str(response_text)), title="Response"))
         if errors:
-            _console.print(Panel("\n".join(_rich_escape(str(e)) for e in errors), title="Errors", style="red"))
+            _console.print(
+                Panel("\n".join(_rich_escape(str(e)) for e in errors), title="Errors", style="red")
+            )
         if show_audit and audit_log:
-            _console.print(Panel("\n".join(_rich_escape(str(line)) for line in audit_log), title="Audit log"))
+            _console.print(
+                Panel("\n".join(_rich_escape(str(line)) for line in audit_log), title="Audit log")
+            )
     else:
         print(f"thread:    {tid}")
         print(f"prompt:    {prompt}")
@@ -782,6 +849,7 @@ def route(
 
 
 # ── inspect-state — preserved ────────────────────────────────────────────
+
 
 @app.command("inspect-state")
 def inspect_state(json_output: bool = typer.Option(False, "--json")) -> None:
@@ -803,15 +871,28 @@ def inspect_state(json_output: bool = typer.Option(False, "--json")) -> None:
             rows.append((name, "?", "?", "?"))
 
     if json_output:
-        print(json.dumps([
-            {"name": r[0], "annotation": r[1], "required": r[2] == "required", "default": r[3]}
-            for r in rows
-        ], indent=2))
+        print(
+            json.dumps(
+                [
+                    {
+                        "name": r[0],
+                        "annotation": r[1],
+                        "required": r[2] == "required",
+                        "default": r[3],
+                    }
+                    for r in rows
+                ],
+                indent=2,
+            )
+        )
         return
 
     if _HAS_RICH and _console:
         t = Table(title=f"GatewayState fields ({len(rows)})")
-        t.add_column("Field"); t.add_column("Type"); t.add_column("Req?"); t.add_column("Default")
+        t.add_column("Field")
+        t.add_column("Type")
+        t.add_column("Req?")
+        t.add_column("Default")
         for r in rows:
             t.add_row(*r)
         _console.print(t)
@@ -822,6 +903,7 @@ def inspect_state(json_output: bool = typer.Option(False, "--json")) -> None:
 
 # ── v8: audit verify subcommand ─────────────────────────────────────────
 
+
 @audit_app.command("verify")
 def audit_verify(
     log_path: str = typer.Argument(
@@ -829,7 +911,8 @@ def audit_verify(
         help="Path to JSONL audit log or s3://bucket/prefix.",
     ),
     secret_env: str = typer.Option(
-        "HIVE_SWARM_AUDIT_SECRET", "--secret-env",
+        "HIVE_SWARM_AUDIT_SECRET",
+        "--secret-env",
         help="Env var holding the HMAC secret used to sign the log.",
     ),
     json_output: bool = typer.Option(False, "--json"),
@@ -858,6 +941,7 @@ def audit_verify(
       3 = chain broken (insertion / deletion / reorder / tampered field)
     """
     import os as _os_v8
+
     try:
         from swarm_shared.audit import (
             AuditChainBroken,
@@ -928,11 +1012,16 @@ def audit_verify(
         )
     except AuditChainBroken as e:
         if json_output:
-            print(json.dumps({
-                "verified": 0, "ok": False,
-                "total_records": len(records),
-                "error": str(e),
-            }))
+            print(
+                json.dumps(
+                    {
+                        "verified": 0,
+                        "ok": False,
+                        "total_records": len(records),
+                        "error": str(e),
+                    }
+                )
+            )
         else:
             _err(f"❌ chain broken: {e}")
         raise typer.Exit(3)
@@ -944,7 +1033,8 @@ def audit_verify(
 
     if json_output:
         payload = {
-            "verified": count, "ok": True,
+            "verified": count,
+            "ok": True,
             "total_records": len(records),
             "swarm_ids": sorted({r.swarm_id for r in records}),
             "by_kind": by_kind,
@@ -957,7 +1047,8 @@ def audit_verify(
     else:
         if _HAS_RICH and _console:
             t = Table(title=f"Audit log verified: {log_path}")
-            t.add_column("Kind"); t.add_column("Count", justify="right")
+            t.add_column("Kind")
+            t.add_column("Count", justify="right")
             for kind, n in sorted(by_kind.items()):
                 t.add_row(kind, str(n))
             _console.print(t)
@@ -1023,6 +1114,7 @@ def dashboard(
     """Launch the optional Textual monitoring dashboard."""
     try:
         from .dashboard import show_dashboard
+
         show_dashboard(history_path=history_path, storage=storage)
     except RuntimeError as e:
         _err(str(e))
@@ -1033,6 +1125,7 @@ def dashboard(
 
 
 # ── v8: streaming HITL prompt helper ────────────────────────────────────
+
 
 def _streaming_hitl_prompt(
     swarm_id: str,
@@ -1055,8 +1148,12 @@ def _streaming_hitl_prompt(
         _console.print(f"[dim]reason[/dim] {reason}  [dim]token[/dim] {decision_token[:8]}…")
         if matched_pattern:
             _console.print(f"[dim]matched_pattern[/dim] {matched_pattern!r}")
-        _console.print(Panel(_rich_escape(partial_text[:2000]),
-                              title=f"Partial output ({len(partial_text)} chars)"))
+        _console.print(
+            Panel(
+                _rich_escape(partial_text[:2000]),
+                title=f"Partial output ({len(partial_text)} chars)",
+            )
+        )
     else:
         print(f"# Streaming HITL — swarm={swarm_id}")
         print(f"# reason={reason}  token={decision_token[:8]}…")
@@ -1066,16 +1163,18 @@ def _streaming_hitl_prompt(
         print(partial_text[:2000])
 
     reviewer_id = (
-        os.environ.get("AI_PROVIDER_GATEWAY_REVIEWER_ID")
-        or os.environ.get("USER")
-        or "cli"
+        os.environ.get("AI_PROVIDER_GATEWAY_REVIEWER_ID") or os.environ.get("USER") or "cli"
     )
 
     try:
-        choice = typer.prompt(
-            "Action? (a=abort / c=continue / p=accept_partial)",
-            default="a",
-        ).strip().lower()
+        choice = (
+            typer.prompt(
+                "Action? (a=abort / c=continue / p=accept_partial)",
+                default="a",
+            )
+            .strip()
+            .lower()
+        )
     except (EOFError, KeyboardInterrupt):
         return None
 
@@ -1097,6 +1196,7 @@ def _streaming_hitl_prompt(
 
 # ── v7: interactive HITL prompt helper ──────────────────────────────────
 
+
 def _interactive_hitl_prompt(swarm_id: str, payload: dict) -> dict | None:
     """Print the consensus snapshot and prompt the operator.
 
@@ -1116,7 +1216,9 @@ def _interactive_hitl_prompt(swarm_id: str, payload: dict) -> dict | None:
     token = str(payload.get("decision_token_required") or payload.get("decision_token") or "")
     if _HAS_RICH and _console:
         _console.rule(f"[bold yellow]HITL approval required[/bold yellow] swarm={swarm_id}")
-        _console.print(f"[dim]protocol[/dim] {proto}  [dim]agreement[/dim] {agree}  [dim]risk[/dim] {risk}")
+        _console.print(
+            f"[dim]protocol[/dim] {proto}  [dim]agreement[/dim] {agree}  [dim]risk[/dim] {risk}"
+        )
         _console.print(Panel(_rich_escape(proposed[:1500]), title="Proposed action"))
         _console.print("[dim]token[/dim] " + token[:8] + "…")
     else:
@@ -1127,15 +1229,18 @@ def _interactive_hitl_prompt(swarm_id: str, payload: dict) -> dict | None:
         print(proposed[:1500])
 
     reviewer_id = (
-        os.environ.get("AI_PROVIDER_GATEWAY_REVIEWER_ID")
-        or os.environ.get("USER")
-        or "cli"
+        os.environ.get("AI_PROVIDER_GATEWAY_REVIEWER_ID") or os.environ.get("USER") or "cli"
     )
 
     try:
-        decision = typer.prompt(
-            "Approve this action? (y/n)", default="n",
-        ).strip().lower()
+        decision = (
+            typer.prompt(
+                "Approve this action? (y/n)",
+                default="n",
+            )
+            .strip()
+            .lower()
+        )
     except (EOFError, KeyboardInterrupt):
         return None
 
@@ -1154,6 +1259,7 @@ def _interactive_hitl_prompt(swarm_id: str, payload: dict) -> dict | None:
 
 
 # ── swarm — v7 (adds --interactive HITL + --tenant) ─────────────────────
+
 
 @app.command("swarm")
 def swarm(
@@ -1176,11 +1282,13 @@ def swarm(
     no_cost: bool = typer.Option(False, "--no-cost"),
     # v7
     interactive: bool = typer.Option(
-        False, "--interactive/--no-interactive",
+        False,
+        "--interactive/--no-interactive",
         help="v7: prompt operator on HITL approval; auto-detects TTY when --interactive omitted.",
     ),
     tenant: Optional[str] = typer.Option(
-        None, "--tenant",
+        None,
+        "--tenant",
         help="v7: tenant id for quota isolation (env: AI_PROVIDER_GATEWAY_TENANT).",
     ),
 ) -> None:
@@ -1258,7 +1366,8 @@ def swarm(
             payload = {
                 "swarm_id": final.swarm_id,
                 "proposed_action_preview": (
-                    (cr.action[:1500] + "…") if cr and cr.action and len(cr.action) > 1500
+                    (cr.action[:1500] + "…")
+                    if cr and cr.action and len(cr.action) > 1500
                     else (cr.action if cr else "")
                 ),
                 "risk_score": cr.risk_score if cr else None,
@@ -1289,9 +1398,7 @@ def swarm(
         (r.usage.cost_usd if (r.usage and r.usage.cost_usd is not None) else 0.0)
         for r in final.worker_results
     )
-    cost_known = any(
-        r.usage and r.usage.cost_usd is not None for r in final.worker_results
-    )
+    cost_known = any(r.usage and r.usage.cost_usd is not None for r in final.worker_results)
 
     payload = {
         "swarm_id": final.swarm_id,
@@ -1348,14 +1455,18 @@ def swarm(
                 _console.print(Panel(_rich_escape(final.final_output), title="Final output"))
             if show_workers:
                 t = Table(title="Workers")
-                t.add_column("Role"); t.add_column("OK")
-                t.add_column("Tokens (in/out)"); t.add_column("Cost")
+                t.add_column("Role")
+                t.add_column("OK")
+                t.add_column("Tokens (in/out)")
+                t.add_column("Cost")
                 t.add_column("Output preview")
                 for r in final.worker_results:
                     in_t = r.usage.input_tokens if r.usage else 0
                     out_t = r.usage.output_tokens if r.usage else 0
                     cost = (
-                        f"${r.usage.cost_usd:.4f}" if (r.usage and r.usage.cost_usd is not None) else "—"
+                        f"${r.usage.cost_usd:.4f}"
+                        if (r.usage and r.usage.cost_usd is not None)
+                        else "—"
                     )
                     preview = (r.output[:60] + "…") if len(r.output) > 60 else r.output
                     t.add_row(

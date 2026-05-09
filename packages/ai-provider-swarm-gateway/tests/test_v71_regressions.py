@@ -5,6 +5,7 @@ Covered:
                 merge with disk state (which would preserve the higher
                 of in-memory zero vs on-disk N).
 """
+
 from __future__ import annotations
 
 import json
@@ -15,12 +16,14 @@ import pytest
 
 # ── F-29-CORR1: reset_usage is authoritative ────────────────────────────
 
+
 def _make_tracker(tmp_path: Path, monkeypatch):
     """Produce a fresh QuotaTracker with a tmp HOME so we don't touch user data."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("AI_PROVIDER_GATEWAY_TENANT", raising=False)
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
     return tracker_mod
 
@@ -127,6 +130,7 @@ def test_reset_usage_isolated_per_tenant(tmp_path: Path, monkeypatch):
 def test_reset_usage_clears_reset_at(tmp_path: Path, monkeypatch):
     """reset_usage should also clear any scheduled reset_at timestamp."""
     from datetime import datetime, timedelta, timezone
+
     tracker_mod = _make_tracker(tmp_path, monkeypatch)
     t = tracker_mod.QuotaTracker.for_tenant("alice")
     t.increment("openai", requests=10)
@@ -141,6 +145,7 @@ def test_reset_usage_clears_reset_at(tmp_path: Path, monkeypatch):
 
 # ── CLI integration: reset via the gateway CLI command works too ────────
 
+
 def test_cli_quota_reset_zeros_actual_disk_state(tmp_path: Path, monkeypatch):
     """End-to-end: invoke the CLI 'quota reset' command, then read on disk."""
     tracker_mod = _make_tracker(tmp_path, monkeypatch)
@@ -151,8 +156,7 @@ def test_cli_quota_reset_zeros_actual_disk_state(tmp_path: Path, monkeypatch):
 
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai",
-         "--requests", "7", "--tenant", "alice"],
+        ["quota", "increment", "--provider", "openai", "--requests", "7", "--tenant", "alice"],
     )
     runner.invoke(
         app,

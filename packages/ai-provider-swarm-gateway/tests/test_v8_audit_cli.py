@@ -1,4 +1,5 @@
 """Tests for `ai-provider-gateway audit verify` subcommand."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ runner = CliRunner()
 
 
 # ── audit verify subcommand surface ─────────────────────────────────────
+
 
 def test_audit_verify_help_works():
     result = runner.invoke(app, ["audit", "verify", "--help"])
@@ -53,6 +55,7 @@ def test_audit_verify_json_output(tmp_path: Path, monkeypatch):
 
 
 # ── Failure modes ──────────────────────────────────────────────────────
+
 
 def test_audit_verify_missing_secret_exits_1(tmp_path: Path, monkeypatch):
     log_path = tmp_path / "audit.jsonl"
@@ -92,7 +95,7 @@ def test_audit_verify_tampered_log_exits_3(tmp_path: Path, monkeypatch):
     # Tamper with the second line
     lines = log_path.read_text().splitlines()
     rec = json.loads(lines[1])
-    rec["payload"] = {"i": 999}   # original was {"i": 1}
+    rec["payload"] = {"i": 999}  # original was {"i": 1}
     lines[1] = json.dumps(rec)
     log_path.write_text("\n".join(lines) + "\n")
 
@@ -153,8 +156,8 @@ def test_audit_verify_inserted_record_exits_3(tmp_path: Path, monkeypatch):
 
     # Forge a third record signed with the same secret but with sequence=1
     # (collides with existing sequence 1 → sequence break)
-    fake = chain.records[1].model_dump()   # cheap: clone existing
-    fake["payload"] = {"injected": True}   # tamper
+    fake = chain.records[1].model_dump()  # cheap: clone existing
+    fake["payload"] = {"injected": True}  # tamper
     lines = log_path.read_text().splitlines()
     lines.insert(1, json.dumps(fake))
     log_path.write_text("\n".join(lines) + "\n")
@@ -165,6 +168,7 @@ def test_audit_verify_inserted_record_exits_3(tmp_path: Path, monkeypatch):
 
 
 # ── Empty + edge cases ─────────────────────────────────────────────────
+
 
 def test_audit_verify_empty_log_exits_zero(tmp_path: Path, monkeypatch):
     log_path = tmp_path / "audit.jsonl"
@@ -177,6 +181,7 @@ def test_audit_verify_empty_log_exits_zero(tmp_path: Path, monkeypatch):
 
 # ── Pinned audit verification CLI flags ─────────────────────────────────
 
+
 def test_audit_verify_expected_head_hash_pass(tmp_path: Path, monkeypatch):
     log_path = tmp_path / "audit.jsonl"
     chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=log_path)
@@ -184,10 +189,16 @@ def test_audit_verify_expected_head_hash_pass(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-head-hash", chain.head_hash,
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-head-hash",
+            chain.head_hash,
+        ],
+    )
 
     assert result.exit_code == 0
 
@@ -199,10 +210,16 @@ def test_audit_verify_expected_head_hash_fail(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-head-hash", "a" * 64,
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-head-hash",
+            "a" * 64,
+        ],
+    )
 
     assert result.exit_code == 3
     assert "head hash" in (result.stdout + (result.stderr or "")).lower()
@@ -215,10 +232,16 @@ def test_audit_verify_expected_count_pass(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-count", "4",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-count",
+            "4",
+        ],
+    )
 
     assert result.exit_code == 0
 
@@ -230,10 +253,16 @@ def test_audit_verify_expected_count_fail(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-count", "10",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-count",
+            "10",
+        ],
+    )
 
     assert result.exit_code == 3
     assert "count" in (result.stdout + (result.stderr or "")).lower()
@@ -246,11 +275,18 @@ def test_audit_verify_both_pins_pass(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-head-hash", chain.head_hash,
-        "--expected-count", "5",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-head-hash",
+            chain.head_hash,
+            "--expected-count",
+            "5",
+        ],
+    )
 
     assert result.exit_code == 0
 
@@ -262,11 +298,18 @@ def test_audit_verify_both_pins_wrong_count_exits_3(tmp_path: Path, monkeypatch)
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-head-hash", chain.head_hash,
-        "--expected-count", "99",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-head-hash",
+            chain.head_hash,
+            "--expected-count",
+            "99",
+        ],
+    )
 
     assert result.exit_code == 3
 
@@ -278,11 +321,19 @@ def test_audit_verify_json_output_includes_pins(tmp_path: Path, monkeypatch):
         chain.append(kind="worker_result", payload={"i": i})
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path), "--json",
-        "--expected-head-hash", chain.head_hash,
-        "--expected-count", "2",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--json",
+            "--expected-head-hash",
+            chain.head_hash,
+            "--expected-count",
+            "2",
+        ],
+    )
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -298,10 +349,16 @@ def test_audit_verify_empty_log_with_expected_count_nonzero_exits_3(
     log_path.write_text("")
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-count", "5",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-count",
+            "5",
+        ],
+    )
 
     assert result.exit_code == 3
 
@@ -321,10 +378,16 @@ def test_audit_verify_truncated_log_caught_by_head_hash_pin(
 
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
     assert runner.invoke(app, ["audit", "verify", str(log_path)]).exit_code == 0
-    result = runner.invoke(app, [
-        "audit", "verify", str(log_path),
-        "--expected-head-hash", full_head,
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            str(log_path),
+            "--expected-head-hash",
+            full_head,
+        ],
+    )
 
     assert result.exit_code == 3
 
@@ -338,6 +401,7 @@ def test_audit_verify_help_shows_pin_flags():
 
 
 # ── S3 audit verification / restore ─────────────────────────────────────
+
 
 class _FakeS3Backend:
     records: list[AuditRecord] = []
@@ -356,7 +420,9 @@ class _FakeS3Backend:
         return self.restored
 
 
-def _install_fake_s3_backend(monkeypatch, records: list[AuditRecord], restored: int = 0) -> type[_FakeS3Backend]:
+def _install_fake_s3_backend(
+    monkeypatch, records: list[AuditRecord], restored: int = 0
+) -> type[_FakeS3Backend]:
     _FakeS3Backend.records = records
     _FakeS3Backend.restored = restored
     _FakeS3Backend.init_args = None
@@ -385,9 +451,17 @@ def test_audit_verify_s3_success_json(monkeypatch):
     fake = _install_fake_s3_backend(monkeypatch, chain.records)
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
 
-    result = runner.invoke(app, [
-        "audit", "verify", "s3://bucket/audit", "--swarm-id", "s1", "--json",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            "s3://bucket/audit",
+            "--swarm-id",
+            "s1",
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -402,9 +476,18 @@ def test_audit_verify_s3_pin_mismatch_exits_3(monkeypatch):
     _install_fake_s3_backend(monkeypatch, chain.records)
     monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
 
-    result = runner.invoke(app, [
-        "audit", "verify", "s3://bucket/audit", "--swarm-id", "s1", "--expected-count", "2",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "verify",
+            "s3://bucket/audit",
+            "--swarm-id",
+            "s1",
+            "--expected-count",
+            "2",
+        ],
+    )
 
     assert result.exit_code == 3
 
@@ -412,10 +495,22 @@ def test_audit_verify_s3_pin_mismatch_exits_3(monkeypatch):
 def test_audit_restore_s3_success_json(monkeypatch):
     fake = _install_fake_s3_backend(monkeypatch, [], restored=3)
 
-    result = runner.invoke(app, [
-        "audit", "restore", "bucket", "s1", "--prefix", "audit", "--tier", "Bulk",
-        "--days", "30", "--json",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            "restore",
+            "bucket",
+            "s1",
+            "--prefix",
+            "audit",
+            "--tier",
+            "Bulk",
+            "--days",
+            "30",
+            "--json",
+        ],
+    )
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)

@@ -64,6 +64,30 @@ uv run ai-provider-gateway audit verify path/to/audit.jsonl
 
 Exit code 0 = chain intact. Non-zero = tampered or wrong secret.
 
+### Audit Secret Policy
+
+Audit secrets must be at least 32 random bytes. Generate one with:
+
+```bash
+python - <<'PY'
+import base64, secrets
+print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+PY
+```
+
+Operational rules:
+
+1. Store audit secrets in a deployment secret manager or environment variable,
+   never in source control.
+2. Rotate production audit secrets at least every 90 days and immediately after
+   suspected exposure.
+3. Keep historical verification material in an incident vault if old logs must
+   remain verifiable.
+4. Record rotation epochs: old records verify with the old secret, new records
+   verify with the new secret.
+5. Use `--expected-head-hash` and `--expected-count` for pinned verification when
+   checking archived logs.
+
 ---
 
 ## Dependency Security

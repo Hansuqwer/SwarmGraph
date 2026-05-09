@@ -1,4 +1,5 @@
 """Hashing helpers (F-06C, W6 consolidation)."""
+
 from __future__ import annotations
 
 import hashlib

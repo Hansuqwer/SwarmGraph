@@ -1,10 +1,12 @@
 """Groq adapter — requires GROQ_API_KEY env var. OpenAI-compatible."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class GroqAdapter(ProviderAdapter):
-    provider_id   = "groq"
+    provider_id = "groq"
     default_model = "llama-3.3-70b-versatile"
 
     def is_configured(self) -> bool:
@@ -15,6 +17,7 @@ class GroqAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             from groq import Groq
+
             client = Groq(api_key=self._get_env("GROQ_API_KEY"))
             resp = client.chat.completions.create(
                 model=model or self.default_model,

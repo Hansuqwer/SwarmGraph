@@ -5,6 +5,7 @@ F-14A: word-boundary regex (was substring match producing false positives like
 F-14-OBS1: history kind = "route" (was misleading "swarm_init")
 F-14-CORR3: length denominator widened so tier 1/2 are reachable
 """
+
 from __future__ import annotations
 
 import re
@@ -98,11 +99,14 @@ def router_node(state: dict[str, Any]) -> dict[str, Any]:
     swarm.complexity_score = score
     swarm.complexity_tier = tier  # type: ignore[assignment]
     # F-14-OBS1: distinct history kind
-    swarm.append_history("route", {
-        "node": "router",
-        "complexity_score": score,
-        "tier": tier,
-    })
+    swarm.append_history(
+        "route",
+        {
+            "node": "router",
+            "complexity_score": score,
+            "tier": tier,
+        },
+    )
     swarm.touch()
     return swarm.to_json_dict()
 

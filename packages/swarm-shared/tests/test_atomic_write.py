@@ -1,4 +1,5 @@
 """Tests for swarm_shared.atomic_write."""
+
 import json
 import os
 from pathlib import Path

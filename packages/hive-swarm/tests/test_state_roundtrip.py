@@ -1,4 +1,5 @@
 """F-04D: SwarmState round-trip tests."""
+
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState
 
@@ -65,6 +66,7 @@ def test_assert_no_drift_raises_before_mutating_validators():
     config = SwarmConfig(anti_drift_enabled=True, anti_drift_similarity_threshold=0.9)
     s = SwarmState(swarm_id="s1", objective="implement OAuth refresh tokens", config=config)
     import pytest
+
     with pytest.raises(ValueError, match="Anti-drift"):
         s.assert_no_drift("totally unrelated output")
 
@@ -72,11 +74,18 @@ def test_assert_no_drift_raises_before_mutating_validators():
 def test_reset_for_retry_clears_ephemeral_state():
     """F-18A: clean retry."""
     from swarm.models.agent import WorkerResult
+
     config = SwarmConfig()
     s = SwarmState(swarm_id="s1", objective="x", config=config)
     s.worker_results = [
-        WorkerResult(agent_id="a1", agent_role="coder", task_id="t1",
-                     success=True, output="ok", confidence=0.8)
+        WorkerResult(
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=True,
+            output="ok",
+            confidence=0.8,
+        )
     ]
     s.latest_output = "stale"
     s.reset_for_retry()

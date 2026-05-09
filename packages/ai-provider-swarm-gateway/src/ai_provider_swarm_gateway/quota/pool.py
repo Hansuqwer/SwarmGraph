@@ -1,4 +1,5 @@
 """Encrypted account vault for provider keys and session tokens."""
+
 from __future__ import annotations
 
 import json
@@ -68,9 +69,7 @@ class SecretStore:
             return env_key.strip()
         if self.key_path is not None and self.key_path.exists():
             return self.key_path.read_text(encoding="utf-8").strip()
-        raise VaultError(
-            f"vault key missing; set {VAULT_KEY_ENV} or create {self.key_path}"
-        )
+        raise VaultError(f"vault key missing; set {VAULT_KEY_ENV} or create {self.key_path}")
 
     def _load(self) -> None:
         if not self.path.exists():

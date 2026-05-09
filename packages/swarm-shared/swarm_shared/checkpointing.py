@@ -19,6 +19,7 @@ Test recipe (also shipped in tests/test_checkpointing_coverage.py):
         missing = abstract - implemented
         assert not missing, f"BaseRedactingCheckpointer missing: {missing}"
 """
+
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -27,6 +28,7 @@ from .redaction import Redactor
 
 try:
     from langgraph.checkpoint.base import BaseCheckpointSaver
+
     _HAS_LANGGRAPH = True
 except ImportError:  # pragma: no cover - optional dependency
     BaseCheckpointSaver = object  # type: ignore[assignment,misc]

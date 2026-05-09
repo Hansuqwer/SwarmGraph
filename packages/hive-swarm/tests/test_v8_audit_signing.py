@@ -1,4 +1,5 @@
 """Tests for audit signing in consensus / approval / worker nodes."""
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ def audit_env(monkeypatch):
 
 # ── _audit_helper unit tests ────────────────────────────────────────────
 
+
 def test_sign_and_record_no_op_when_disabled(audit_env):
     """audit_signing_enabled=False ⇒ sign_and_record returns None."""
     from swarm._audit_helper import sign_and_record
@@ -32,7 +34,8 @@ def test_sign_and_record_no_op_when_disabled(audit_env):
     from swarm.models.state import SwarmState
 
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(audit_signing_enabled=False),
     )
     assert sign_and_record(state, "consensus_result", {"x": 1}) is None
@@ -45,7 +48,8 @@ def test_sign_and_record_writes_when_enabled(audit_env):
     from swarm.models.state import SwarmState
 
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(audit_signing_enabled=True),
     )
     rec_dict = sign_and_record(state, "consensus_result", {"vote_count": 5})
@@ -64,7 +68,8 @@ def test_sign_and_record_chain_links(audit_env):
     from swarm.models.state import SwarmState
 
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(audit_signing_enabled=True),
     )
     r1 = sign_and_record(state, "consensus_result", {"i": 1})
@@ -81,7 +86,8 @@ def test_sign_and_record_skipped_for_unconfigured_kind(audit_env):
     from swarm.models.state import SwarmState
 
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(
             audit_signing_enabled=True,
             audit_kinds=("consensus_result",),  # only consensus
@@ -104,7 +110,8 @@ def test_sign_and_record_missing_secret_writes_error(monkeypatch):
     # Ensure no secret
     monkeypatch.delenv("HIVE_SWARM_AUDIT_SECRET", raising=False)
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(
             audit_signing_enabled=True,
             audit_secret_env="HIVE_SWARM_AUDIT_SECRET",
@@ -141,6 +148,7 @@ def test_sign_and_record_missing_secret_can_fail_closed(monkeypatch):
 
 # ── Persistent JSONL flush ──────────────────────────────────────────────
 
+
 def test_audit_jsonl_path_appends_records(audit_env, tmp_path: Path):
     from swarm._audit_helper import sign_and_record
     from swarm.models.config import SwarmConfig
@@ -148,7 +156,8 @@ def test_audit_jsonl_path_appends_records(audit_env, tmp_path: Path):
 
     audit_path = tmp_path / "audit.jsonl"
     state = SwarmState(
-        swarm_id="s1", objective="x",
+        swarm_id="s1",
+        objective="x",
         config=SwarmConfig(
             audit_signing_enabled=True,
             audit_log_path=str(audit_path),
@@ -178,6 +187,7 @@ def test_audit_log_path_substitutes_placeholders(audit_env, tmp_path: Path):
 
 # ── Integration: consensus + approval + worker all sign ─────────────────
 
+
 def test_consensus_node_signs_result(audit_env):
     from swarm.models.agent import AgentVote
     from swarm.models.config import SwarmConfig
@@ -187,8 +197,7 @@ def test_consensus_node_signs_result(audit_env):
     config = SwarmConfig(audit_signing_enabled=True)
     state = SwarmState(swarm_id="s1", objective="x", config=config)
     state.pending_votes = [
-        AgentVote(agent_id=f"a{i}", agent_role="coder",
-                  proposed_action="do thing", confidence=0.9)
+        AgentVote(agent_id=f"a{i}", agent_role="coder", proposed_action="do thing", confidence=0.9)
         for i in range(3)
     ]
     out = consensus_node(state.to_json_dict())
@@ -207,14 +216,31 @@ def test_collect_results_node_signs_each_worker_result(audit_env):
 
     config = SwarmConfig(audit_signing_enabled=True)
     state = SwarmState(swarm_id="s1", objective="x", config=config)
-    state.tasks.append(SwarmTask(
-        task_id="t1", description="x", status="assigned", assigned_to="a1",
-    ))
+    state.tasks.append(
+        SwarmTask(
+            task_id="t1",
+            description="x",
+            status="assigned",
+            assigned_to="a1",
+        )
+    )
     state.worker_results = [
-        WorkerResult(agent_id="a1", agent_role="coder", task_id="t1",
-                     success=True, output="ok", confidence=0.9),
-        WorkerResult(agent_id="a2", agent_role="tester", task_id="t1",
-                     success=False, error_message="failed", confidence=0.0),
+        WorkerResult(
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=True,
+            output="ok",
+            confidence=0.9,
+        ),
+        WorkerResult(
+            agent_id="a2",
+            agent_role="tester",
+            task_id="t1",
+            success=False,
+            error_message="failed",
+            confidence=0.0,
+        ),
     ]
     out = collect_results_node(state.to_json_dict())
     final = SwarmState.from_json_dict(out)
@@ -236,16 +262,26 @@ def test_full_chain_verifies_after_consensus_and_workers(audit_env):
     state = SwarmState(swarm_id="s1", objective="x", config=config)
 
     # Add a task (required for collect_results to succeed)
-    state.tasks.append(SwarmTask(
-        task_id="t1", description="x", status="assigned", assigned_to="a1",
-    ))
+    state.tasks.append(
+        SwarmTask(
+            task_id="t1",
+            description="x",
+            status="assigned",
+            assigned_to="a1",
+        )
+    )
     state.worker_results = [
-        WorkerResult(agent_id="a1", agent_role="coder", task_id="t1",
-                     success=True, output="ok", confidence=0.9),
+        WorkerResult(
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=True,
+            output="ok",
+            confidence=0.9,
+        ),
     ]
     state.pending_votes = [
-        AgentVote(agent_id="a1", agent_role="coder",
-                  proposed_action="do thing", confidence=0.9),
+        AgentVote(agent_id="a1", agent_role="coder", proposed_action="do thing", confidence=0.9),
     ]
 
     # Run collect_results then consensus
@@ -259,14 +295,16 @@ def test_full_chain_verifies_after_consensus_and_workers(audit_env):
     secret = SECRET_VALUE.encode("utf-8")
     count = verify_chain(records, secret=secret)
     assert count == len(records)
-    assert count >= 2   # at least 1 worker_result + 1 consensus_result
+    assert count >= 2  # at least 1 worker_result + 1 consensus_result
 
 
 # ── SwarmConfig validation ──────────────────────────────────────────────
 
+
 def test_invalid_audit_kind_rejected():
     from pydantic import ValidationError
     from swarm.models.config import SwarmConfig
+
     with pytest.raises(ValidationError):
         SwarmConfig(audit_kinds=("totally_made_up_kind",))
 
@@ -274,6 +312,7 @@ def test_invalid_audit_kind_rejected():
 def test_invalid_secret_env_name_rejected():
     from pydantic import ValidationError
     from swarm.models.config import SwarmConfig
+
     with pytest.raises(ValidationError):
         SwarmConfig(audit_secret_env="lowercase-bad")
 
@@ -281,6 +320,7 @@ def test_invalid_secret_env_name_rejected():
 def test_streaming_pattern_validated_at_config_time():
     from pydantic import ValidationError
     from swarm.models.config import SwarmConfig
+
     with pytest.raises(ValidationError):
         SwarmConfig(streaming_guard_patterns=["[invalid regex"])
 
@@ -288,5 +328,6 @@ def test_streaming_pattern_validated_at_config_time():
 def test_streaming_max_chars_bound():
     from pydantic import ValidationError
     from swarm.models.config import SwarmConfig
+
     with pytest.raises(ValidationError):
-        SwarmConfig(streaming_max_output_chars=10)   # below ge=128
+        SwarmConfig(streaming_max_output_chars=10)  # below ge=128

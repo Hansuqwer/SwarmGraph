@@ -1,4 +1,5 @@
 """Optional Textual dashboard for local SwarmGraph monitoring."""
+
 from __future__ import annotations
 
 import json
@@ -33,7 +34,9 @@ def load_consensus_history(path: Path, limit: int = 10) -> list[dict[str, Any]]:
 
 def build_agreement_plot(history: list[dict[str, Any]]) -> str:
     """Render a text chart for agreement fractions."""
-    values = [float(item.get("agreement", item.get("agreement_fraction", 0.0)) or 0.0) for item in history]
+    values = [
+        float(item.get("agreement", item.get("agreement_fraction", 0.0)) or 0.0) for item in history
+    ]
     if not values:
         values = [0.0]
     try:
@@ -84,7 +87,9 @@ def show_dashboard(history_path: Path | None = None, storage: Path | None = None
             yield Header(show_clock=True)
             yield Horizontal(
                 Vertical(Static("Quota Usage"), DataTable(id="quota_table")),
-                Vertical(Static("Consensus History"), DataTable(id="history_table"), Static(id="plot")),
+                Vertical(
+                    Static("Consensus History"), DataTable(id="history_table"), Static(id="plot")
+                ),
             )
             yield Footer()
 
@@ -122,4 +127,9 @@ def show_dashboard(history_path: Path | None = None, storage: Path | None = None
     SwarmDashboard().run()
 
 
-__all__ = ["DEFAULT_HISTORY_PATH", "build_agreement_plot", "load_consensus_history", "show_dashboard"]
+__all__ = [
+    "DEFAULT_HISTORY_PATH",
+    "build_agreement_plot",
+    "load_consensus_history",
+    "show_dashboard",
+]

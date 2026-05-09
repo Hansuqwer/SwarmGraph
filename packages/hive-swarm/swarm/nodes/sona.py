@@ -6,6 +6,7 @@ F-27A (HIGH): retrieved patterns are written to swarm.retrieved_context so
 F-27B: pattern keys include swarm_id to avoid cross-session overwrites
 F-27C: sona_cycle_count cap is enforced by the field validator (state.py)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -25,10 +26,13 @@ def distill_node(state: dict[str, Any]) -> dict[str, Any]:
     if swarm.config.sona_enabled:
         removed = swarm.memory.distill()
         if removed:
-            swarm.append_history("sona_distill", {
-                "step": "distill",
-                "removed_count": len(removed),
-            })
+            swarm.append_history(
+                "sona_distill",
+                {
+                    "step": "distill",
+                    "removed_count": len(removed),
+                },
+            )
 
     # ── CONSOLIDATE ──────────────────────────────────────────────────────
     if swarm.config.sona_enabled and swarm.final_output:
@@ -47,11 +51,14 @@ def distill_node(state: dict[str, Any]) -> dict[str, Any]:
             tags=["sona", "successful_run"],
             source_agent_id="distill_node",
         )
-        swarm.append_history("memory_store", {
-            "step": "consolidate",
-            "key": pattern_key,
-            "namespace": swarm.config.memory_namespace,
-        })
+        swarm.append_history(
+            "memory_store",
+            {
+                "step": "consolidate",
+                "key": pattern_key,
+                "namespace": swarm.config.memory_namespace,
+            },
+        )
 
     swarm.increment_sona()
     swarm.status = "completed"
@@ -84,10 +91,13 @@ def memory_retrieve_node(state: dict[str, Any]) -> dict[str, Any]:
             }
             for e in relevant
         ]
-        swarm.append_history("memory_retrieve", {
-            "retrieved_count": len(relevant),
-            "top_score": relevant[0].score,
-        })
+        swarm.append_history(
+            "memory_retrieve",
+            {
+                "retrieved_count": len(relevant),
+                "top_score": relevant[0].score,
+            },
+        )
         # EWC++-analog: promote scores of accessed entries
         for e in relevant:
             swarm.memory.promote_score(e.key, e.namespace)

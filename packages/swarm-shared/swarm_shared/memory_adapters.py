@@ -5,6 +5,7 @@ Reverse direction is intentionally NOT supported because MemoLesson's
 strict shell-metachar denylist would silently reject most code-content
 SwarmMemoryEntry values (see traces/W6_cross_project_memory.md).
 """
+
 from __future__ import annotations
 
 from typing import Any, Protocol

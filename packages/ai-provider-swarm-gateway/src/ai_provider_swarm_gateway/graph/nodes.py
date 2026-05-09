@@ -2,6 +2,7 @@
 AGENTS 16-23 — LangGraph node implementations.
 Each node is a pure function: dict -> dict (GatewayState serialized).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -14,7 +15,11 @@ from ..consensus.strategies import (
     weighted_confidence_consensus,
 )
 from ..models.state import GatewayResponse, GatewayState, ProviderAttempt, RoutingDecision
-from ..policy.guardrails import can_route_to_provider, reject_quota_evasion, validate_provider_policy
+from ..policy.guardrails import (
+    can_route_to_provider,
+    reject_quota_evasion,
+    validate_provider_policy,
+)
 from ..providers.base import ProviderAdapter
 from ..providers.mock_adapter import MockAdapter
 from ..quota.tracker import QuotaTracker
@@ -23,7 +28,7 @@ from ..registry.loader import load_provider_registry
 
 # ── Shared resources (initialized once per import) ───────────────────────────
 
-_registry      = None
+_registry = None
 _registry_dict = None
 _quota_tracker = QuotaTracker()
 
@@ -38,36 +43,37 @@ def _get_registry():
 
 def _get_adapter(provider_id: str) -> ProviderAdapter:
     """Return the correct adapter for a provider_id. Falls back to mock."""
-    from ..providers.openai_adapter     import OpenAIAdapter
-    from ..providers.anthropic_adapter  import AnthropicAdapter
-    from ..providers.google_adapter     import GoogleAdapter
-    from ..providers.groq_adapter       import GroqAdapter
-    from ..providers.grok_adapter       import GrokAdapter
-    from ..providers.deepseek_adapter   import DeepSeekAdapter
-    from ..providers.qwen_adapter       import QwenAdapter
-    from ..providers.glm_adapter        import GLMAdapter
-    from ..providers.kimi_adapter       import KimiAdapter
+    from ..providers.openai_adapter import OpenAIAdapter
+    from ..providers.anthropic_adapter import AnthropicAdapter
+    from ..providers.google_adapter import GoogleAdapter
+    from ..providers.groq_adapter import GroqAdapter
+    from ..providers.grok_adapter import GrokAdapter
+    from ..providers.deepseek_adapter import DeepSeekAdapter
+    from ..providers.qwen_adapter import QwenAdapter
+    from ..providers.glm_adapter import GLMAdapter
+    from ..providers.kimi_adapter import KimiAdapter
     from ..providers.openrouter_adapter import OpenRouterAdapter
     from ..providers.nine_router_adapter import NineRouterAdapter
 
     adapters: dict[str, ProviderAdapter] = {
-        "openai":               OpenAIAdapter(),
-        "anthropic":            AnthropicAdapter(),
-        "google_gemini":        GoogleAdapter(),
-        "groq":                 GroqAdapter(),
-        "grok":                 GrokAdapter(),
-        "deepseek":             DeepSeekAdapter(),
-        "qwen":                 QwenAdapter(),
-        "zhipu_glm":            GLMAdapter(),
-        "moonshot_kimi":        KimiAdapter(),
-        "openrouter":           OpenRouterAdapter(),
-        "9router":              NineRouterAdapter(),
-        "mock":                 MockAdapter(),
+        "openai": OpenAIAdapter(),
+        "anthropic": AnthropicAdapter(),
+        "google_gemini": GoogleAdapter(),
+        "groq": GroqAdapter(),
+        "grok": GrokAdapter(),
+        "deepseek": DeepSeekAdapter(),
+        "qwen": QwenAdapter(),
+        "zhipu_glm": GLMAdapter(),
+        "moonshot_kimi": KimiAdapter(),
+        "openrouter": OpenRouterAdapter(),
+        "9router": NineRouterAdapter(),
+        "mock": MockAdapter(),
     }
     return adapters.get(provider_id, MockAdapter())
 
 
 # ── Node 1: Intake ────────────────────────────────────────────────────────────
+
 
 def intake_node(state: dict[str, Any]) -> dict[str, Any]:
     """Validate and sanitize incoming request."""
@@ -88,6 +94,7 @@ def intake_node(state: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Node 2: Classify Request ──────────────────────────────────────────────────
+
 
 def classify_request_node(state: dict[str, Any]) -> dict[str, Any]:
     """Infer requested capability from prompt if not specified."""
@@ -111,6 +118,7 @@ def classify_request_node(state: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Node 3: Provider Filter ───────────────────────────────────────────────────
+
 
 def provider_filter_node(state: dict[str, Any]) -> dict[str, Any]:
     """Filter providers by capability, credentials, policy, and free-tier status."""
@@ -156,6 +164,7 @@ def provider_filter_node(state: dict[str, Any]) -> dict[str, Any]:
 
 # ── Node 4: Quota Check ───────────────────────────────────────────────────────
 
+
 def quota_check_node(state: dict[str, Any]) -> dict[str, Any]:
     """Remove providers with exhausted known quotas."""
     s = GatewayState.from_json_dict(state)
@@ -188,6 +197,7 @@ def quota_check_node(state: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Node 5: Swarm Route ───────────────────────────────────────────────────────
+
 
 def swarm_route_node(state: dict[str, Any]) -> dict[str, Any]:
     """Parallel evaluation of candidate providers → ProviderVote list."""
@@ -230,16 +240,20 @@ def swarm_route_node(state: dict[str, Any]) -> dict[str, Any]:
 
         # Check health (simplified — no real health check in stub)
         score = min(1.0, score)
-        votes.append({"provider_id": pid, "score": score, "reason": ", ".join(reason_parts) or "default"})
+        votes.append(
+            {"provider_id": pid, "score": score, "reason": ", ".join(reason_parts) or "default"}
+        )
 
     # Store votes in state via audit log (votes will be read by consensus_node)
     import json
+
     s.log(f"swarm_route_node: votes={json.dumps(votes)}")
     s.audit_log = s.audit_log + ["__votes__:" + json.dumps(votes)]
     return s.to_json_dict()
 
 
 # ── Node 6: Consensus ─────────────────────────────────────────────────────────
+
 
 def consensus_node(state: dict[str, Any]) -> dict[str, Any]:
     """Apply cost-aware + policy-guarded consensus to select best provider."""
@@ -251,10 +265,11 @@ def consensus_node(state: dict[str, Any]) -> dict[str, Any]:
 
     # Recover votes from audit log
     import json
+
     votes: list[ProviderVote] = []
     for entry in s.audit_log:
         if entry.startswith("__votes__:"):
-            raw_votes = json.loads(entry[len("__votes__:"):])
+            raw_votes = json.loads(entry[len("__votes__:") :])
             votes = [ProviderVote(**v) for v in raw_votes]
             break
 
@@ -274,14 +289,26 @@ def consensus_node(state: dict[str, Any]) -> dict[str, Any]:
     if not winner:
         winner = weighted_confidence_consensus(votes, registry_dict)
 
-    rejected = [v.provider_id for v in votes if not v.policy_ok or v.provider_id != (winner.provider_id if winner else "")]
+    rejected = [
+        v.provider_id
+        for v in votes
+        if not v.policy_ok or v.provider_id != (winner.provider_id if winner else "")
+    ]
     policy_warnings = []
     if winner:
-        policy_warnings = validate_provider_policy(registry_dict[winner.provider_id]) if winner.provider_id in registry_dict else []
+        policy_warnings = (
+            validate_provider_policy(registry_dict[winner.provider_id])
+            if winner.provider_id in registry_dict
+            else []
+        )
 
     s.routing_decision = RoutingDecision(
         selected_provider_id=winner.provider_id if winner else None,
-        selected_model=registry_dict[winner.provider_id].supported_models[0] if winner and winner.provider_id in registry_dict and registry_dict[winner.provider_id].supported_models else None,
+        selected_model=registry_dict[winner.provider_id].supported_models[0]
+        if winner
+        and winner.provider_id in registry_dict
+        and registry_dict[winner.provider_id].supported_models
+        else None,
         reason=winner.reason if winner else "No provider passed consensus",
         rejected_provider_ids=rejected,
         policy_warnings=policy_warnings,
@@ -293,16 +320,21 @@ def consensus_node(state: dict[str, Any]) -> dict[str, Any]:
 
 # ── Node 7: Provider Call ─────────────────────────────────────────────────────
 
+
 def provider_call_node(state: dict[str, Any]) -> dict[str, Any]:
     """Make the actual provider API call."""
     s = GatewayState.from_json_dict(state)
-    if not s.is_safe_to_proceed or not s.routing_decision or not s.routing_decision.selected_provider_id:
+    if (
+        not s.is_safe_to_proceed
+        or not s.routing_decision
+        or not s.routing_decision.selected_provider_id
+    ):
         s.log("provider_call_node: skipped — no provider selected")
         return s.to_json_dict()
 
     provider_id = s.routing_decision.selected_provider_id
-    model_id    = s.routing_decision.selected_model
-    adapter     = _get_adapter(provider_id)
+    model_id = s.routing_decision.selected_model
+    adapter = _get_adapter(provider_id)
 
     attempt = ProviderAttempt(
         provider_id=provider_id,
@@ -313,18 +345,19 @@ def provider_call_node(state: dict[str, Any]) -> dict[str, Any]:
     s.log(f"provider_call_node: calling {provider_id}")
     response = adapter.call(s.user_prompt, model=model_id)
 
-    attempt.success     = response.error is None
-    attempt.error       = response.error
+    attempt.success = response.error is None
+    attempt.error = response.error
     attempt.finished_at = datetime.now(tz=timezone.utc)
     attempt.tokens_used = response.tokens_used
 
-    s.attempts          = s.attempts + [attempt]
+    s.attempts = s.attempts + [attempt]
     s.provider_response = response
     s.log(f"provider_call_node: success={attempt.success}")
     return s.to_json_dict()
 
 
 # ── Node 8: Response Validation ───────────────────────────────────────────────
+
 
 def response_validation_node(state: dict[str, Any]) -> dict[str, Any]:
     """Validate response quality, detect errors, prepare for usage update."""
@@ -344,6 +377,7 @@ def response_validation_node(state: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Node 9: Usage Update ──────────────────────────────────────────────────────
+
 
 def usage_update_node(state: dict[str, Any]) -> dict[str, Any]:
     """Update local quota tracker. Append-only. Write audit log entry."""

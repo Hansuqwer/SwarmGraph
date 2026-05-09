@@ -4,10 +4,12 @@ Asserts BaseRedactingCheckpointer overrides EVERY abstract method of
 BaseCheckpointSaver. If LangGraph 0.4 adds a new abstract method, this
 test fails at PR time instead of silently leaking unredacted writes.
 """
+
 import pytest
 
 try:
     from langgraph.checkpoint.base import BaseCheckpointSaver
+
     HAS_LANGGRAPH = True
 except ImportError:
     HAS_LANGGRAPH = False
@@ -44,5 +46,6 @@ def test_redacting_checkpointer_imports_without_langgraph():
 def test_redacting_checkpointer_has_redaction_count():
     """Observability hook (F-20-OBS1)."""
     from langgraph.checkpoint.memory import InMemorySaver
+
     cp = BaseRedactingCheckpointer(InMemorySaver())
     assert cp.redaction_count == 0

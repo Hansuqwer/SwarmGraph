@@ -1,4 +1,5 @@
 """Tests for swarm_shared.audit — tamper-evidence is the whole product."""
+
 from __future__ import annotations
 
 import json
@@ -6,6 +7,7 @@ import time
 from pathlib import Path
 
 import pytest
+from hypothesis import given, settings, strategies as st
 
 from swarm_shared.audit import (
     AuditChain,
@@ -23,8 +25,43 @@ from swarm_shared.audit import (
 SECRET = b"test-hmac-secret-not-real"
 ALT_SECRET = b"different-secret"
 
+_AUDIT_KINDS = ("consensus_result", "approval_decision", "worker_result", "stream_hitl_decision")
+
+
+@st.composite
+def _payloads(draw):
+    return draw(
+        st.dictionaries(
+            st.text(min_size=1, max_size=12),
+            st.one_of(
+                st.integers(min_value=-1000, max_value=1000),
+                st.booleans(),
+                st.text(max_size=40),
+            ),
+            min_size=1,
+            max_size=4,
+        )
+    )
+
+
+@st.composite
+def _audit_inputs(draw, *, min_size: int = 3):
+    payloads = draw(st.lists(_payloads(), min_size=min_size, max_size=8))
+    kinds = draw(
+        st.lists(st.sampled_from(_AUDIT_KINDS), min_size=len(payloads), max_size=len(payloads))
+    )
+    return list(zip(kinds, payloads))
+
+
+def _build_chain_from_inputs(inputs) -> list[AuditRecord]:
+    chain = AuditChain(swarm_id="property-swarm", secret=SECRET)
+    for kind, payload in inputs:
+        chain.append(kind=kind, payload=payload)
+    return chain.records
+
 
 # ── sign_record / verify_record basics ──────────────────────────────────
+
 
 def test_sign_then_verify_roundtrip():
     rec = sign_record(
@@ -54,10 +91,22 @@ def test_record_hash_is_64_hex():
 
 
 def test_distinct_payloads_distinct_hashes():
-    a = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                    payload={"x": 1}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
-    b = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                    payload={"x": 2}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
+    a = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
+    b = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 2},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
     assert a.record_hash != b.record_hash
     assert a.signature != b.signature
 
@@ -65,27 +114,52 @@ def test_distinct_payloads_distinct_hashes():
 def test_same_payload_same_hash_when_timestamp_quantized():
     """Determinism: same logical content → same record_hash (modulo timestamp)."""
     ts = 1234567890.12345
-    a = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                    payload={"x": 1}, prev_hash=GENESIS_PREV_HASH,
-                    secret=SECRET, timestamp=ts)
-    b = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                    payload={"x": 1}, prev_hash=GENESIS_PREV_HASH,
-                    secret=SECRET, timestamp=ts)
+    a = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+        timestamp=ts,
+    )
+    b = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+        timestamp=ts,
+    )
     assert a.record_hash == b.record_hash
 
 
 # ── verify_record failure modes ─────────────────────────────────────────
 
+
 def test_verify_wrong_secret_raises():
-    rec = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                      payload={"x": 1}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
+    rec = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
     with pytest.raises(AuditChainBroken, match="signature mismatch"):
         verify_record(rec, secret=ALT_SECRET, expected_prev_hash=GENESIS_PREV_HASH)
 
 
 def test_verify_wrong_prev_hash_raises():
-    rec = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                      payload={"x": 1}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
+    rec = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
     with pytest.raises(AuditChainBroken, match="chain break"):
         verify_record(rec, secret=SECRET, expected_prev_hash="WRONG")
 
@@ -93,8 +167,14 @@ def test_verify_wrong_prev_hash_raises():
 def test_verify_tampered_payload_raises():
     """Pydantic frozen model — but we simulate tampering by reconstructing
     the JSON, modifying a field, and reparsing."""
-    rec = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                      payload={"x": 1}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
+    rec = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
     raw = rec.model_dump()
     raw["payload"] = {"x": 999}  # tamper
     tampered = AuditRecord.model_validate(raw)
@@ -105,8 +185,14 @@ def test_verify_tampered_payload_raises():
 
 
 def test_verify_tampered_signature_raises():
-    rec = sign_record(kind="worker_result", swarm_id="s1", sequence=0,
-                      payload={"x": 1}, prev_hash=GENESIS_PREV_HASH, secret=SECRET)
+    rec = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"x": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
     raw = rec.model_dump()
     # Replace signature with a different valid-looking 64-hex string
     raw["signature"] = "f" * 64
@@ -116,6 +202,7 @@ def test_verify_tampered_signature_raises():
 
 
 # ── verify_chain and threat model ───────────────────────────────────────
+
 
 def _build_chain(n: int, secret=SECRET) -> list[AuditRecord]:
     """Produce a clean chain of n records."""
@@ -139,7 +226,7 @@ def test_chain_with_wrong_secret_fails():
 def test_chain_deletion_caught():
     """Removing record[1] from a 5-chain breaks verification."""
     records = _build_chain(5)
-    tampered = [records[0]] + records[2:]   # delete index 1
+    tampered = [records[0]] + records[2:]  # delete index 1
     with pytest.raises(AuditChainBroken):
         verify_chain(tampered, secret=SECRET)
 
@@ -148,8 +235,11 @@ def test_chain_insertion_caught():
     """Inserting a fake record breaks the next record's chain link."""
     records = _build_chain(3)
     fake = sign_record(
-        kind="worker_result", swarm_id="s1", sequence=1,
-        payload={"injected": True}, prev_hash=records[0].record_hash,
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=1,
+        payload={"injected": True},
+        prev_hash=records[0].record_hash,
         secret=SECRET,
     )
     tampered = [records[0], fake, records[1], records[2]]
@@ -189,7 +279,66 @@ def test_chain_payload_swap_caught():
         verify_chain(tampered, secret=SECRET)
 
 
+@given(_audit_inputs())
+@settings(max_examples=60, deadline=None)
+def test_property_valid_generated_chains_verify(inputs):
+    records = _build_chain_from_inputs(inputs)
+
+    assert verify_chain(records, secret=SECRET) == len(records)
+
+
+@given(_audit_inputs())
+@settings(max_examples=60, deadline=None)
+def test_property_deletion_breaks_chain(inputs):
+    records = _build_chain_from_inputs(inputs)
+    tampered = records[:1] + records[2:]
+
+    with pytest.raises(AuditChainBroken):
+        verify_chain(tampered, secret=SECRET)
+
+
+@given(_audit_inputs())
+@settings(max_examples=60, deadline=None)
+def test_property_reorder_breaks_chain(inputs):
+    records = _build_chain_from_inputs(inputs)
+    tampered = [records[0], records[2], records[1], *records[3:]]
+
+    with pytest.raises(AuditChainBroken):
+        verify_chain(tampered, secret=SECRET)
+
+
+@given(_audit_inputs())
+@settings(max_examples=60, deadline=None)
+def test_property_payload_mutation_breaks_chain(inputs):
+    records = _build_chain_from_inputs(inputs)
+    raw = records[1].model_dump()
+    raw["payload"] = {**raw["payload"], "tampered": True}
+    tampered = [records[0], AuditRecord.model_validate(raw), *records[2:]]
+
+    with pytest.raises(AuditChainBroken):
+        verify_chain(tampered, secret=SECRET)
+
+
+@given(_audit_inputs())
+@settings(max_examples=60, deadline=None)
+def test_property_insertion_breaks_chain(inputs):
+    records = _build_chain_from_inputs(inputs)
+    injected = sign_record(
+        kind="worker_result",
+        swarm_id="property-swarm",
+        sequence=1,
+        payload={"injected": True},
+        prev_hash=records[0].record_hash,
+        secret=SECRET,
+    )
+    tampered = [records[0], injected, *records[1:]]
+
+    with pytest.raises(AuditChainBroken):
+        verify_chain(tampered, secret=SECRET)
+
+
 # ── AuditChain stateful helper ──────────────────────────────────────────
+
 
 def test_audit_chain_increments_sequence():
     chain = AuditChain(swarm_id="s1", secret=SECRET)
@@ -251,6 +400,7 @@ def test_audit_chain_with_tenant_id():
 
 # ── JSONL persistence ──────────────────────────────────────────────────
 
+
 def test_jsonl_round_trip(tmp_path: Path):
     fp = tmp_path / "audit.jsonl"
     chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
@@ -278,13 +428,15 @@ def test_jsonl_load_skips_blank_lines(tmp_path: Path):
     chain = AuditChain(swarm_id="s1", secret=SECRET)
     chain.append(kind="worker_result", payload={"i": 0})
     chain.append(kind="worker_result", payload={"i": 1})
-    raw = "\n".join([
-        chain.records[0].model_dump_json(),
-        "",
-        "  ",
-        chain.records[1].model_dump_json(),
-        "",
-    ])
+    raw = "\n".join(
+        [
+            chain.records[0].model_dump_json(),
+            "",
+            "  ",
+            chain.records[1].model_dump_json(),
+            "",
+        ]
+    )
     fp.write_text(raw)
     loaded = load_jsonl_chain(fp)
     assert len(loaded) == 2
@@ -307,6 +459,7 @@ def test_jsonl_oversized_record_rejected(tmp_path: Path):
 
 
 # ── Tampering on disk ──────────────────────────────────────────────────
+
 
 def test_disk_tampering_caught_on_reload(tmp_path: Path):
     """Edit a JSONL line on disk, reload, verify_chain must raise."""
@@ -358,16 +511,20 @@ def test_disk_truncation_caught_on_reload(tmp_path: Path):
 
 # ── Pinned audit chain verification ─────────────────────────────────────
 
+
 def test_verify_chain_expected_head_hash_matches():
     chain = AuditChain(swarm_id="s1", secret=SECRET)
     for i in range(4):
         chain.append(kind="worker_result", payload={"i": i})
 
-    assert verify_chain(
-        chain.records,
-        secret=SECRET,
-        expected_head_hash=chain.head_hash,
-    ) == 4
+    assert (
+        verify_chain(
+            chain.records,
+            secret=SECRET,
+            expected_head_hash=chain.head_hash,
+        )
+        == 4
+    )
 
 
 def test_verify_chain_expected_head_hash_mismatch_raises():
@@ -415,12 +572,15 @@ def test_verify_chain_both_pins_pass():
     for i in range(4):
         chain.append(kind="worker_result", payload={"i": i})
 
-    assert verify_chain(
-        chain.records,
-        secret=SECRET,
-        expected_head_hash=chain.head_hash,
-        expected_count=4,
-    ) == 4
+    assert (
+        verify_chain(
+            chain.records,
+            secret=SECRET,
+            expected_head_hash=chain.head_hash,
+            expected_count=4,
+        )
+        == 4
+    )
 
 
 def test_verify_chain_both_pins_count_fails_first():

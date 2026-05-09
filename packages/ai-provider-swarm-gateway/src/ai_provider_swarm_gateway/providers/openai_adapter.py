@@ -1,10 +1,12 @@
 """OpenAI adapter stub — requires OPENAI_API_KEY env var."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class OpenAIAdapter(ProviderAdapter):
-    provider_id   = "openai"
+    provider_id = "openai"
     default_model = "gpt-4o-mini"
 
     def is_configured(self) -> bool:
@@ -15,6 +17,7 @@ class OpenAIAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import openai
+
             client = openai.OpenAI(api_key=self._get_env("OPENAI_API_KEY"))
             resp = client.chat.completions.create(
                 model=model or self.default_model,

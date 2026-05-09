@@ -1,4 +1,5 @@
 """Tests for OpenAIEmbeddingAdapter — no live network."""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from swarm.llm.embeddings import (
 
 # ── Fake HTTP client ─────────────────────────────────────────────────────
 
+
 class _FakeHttp:
     def __init__(self, status: int, body: str):
         self.status = status
@@ -29,6 +31,7 @@ class _FakeHttp:
 
 
 # ── Configuration ────────────────────────────────────────────────────────
+
 
 def test_unconfigured_without_any_key(monkeypatch):
     for name in _OPENAI_KEY_ENV_ALIASES:
@@ -61,11 +64,13 @@ def test_alias_envvar_works(monkeypatch):
 # ── Embed happy path ─────────────────────────────────────────────────────
 
 _FAKE_EMBEDDING = [0.01, 0.02, 0.03, -0.04, 0.5]
-_FAKE_BODY = json.dumps({
-    "data": [{"embedding": _FAKE_EMBEDDING, "index": 0}],
-    "model": "text-embedding-3-small",
-    "usage": {"prompt_tokens": 5, "total_tokens": 5},
-})
+_FAKE_BODY = json.dumps(
+    {
+        "data": [{"embedding": _FAKE_EMBEDDING, "index": 0}],
+        "model": "text-embedding-3-small",
+        "usage": {"prompt_tokens": 5, "total_tokens": 5},
+    }
+)
 
 
 def test_embed_returns_vector_on_200():
@@ -84,6 +89,7 @@ def test_embed_sends_correct_payload():
 
 
 # ── Embed failure modes — all return [] for keyword fallback ────────────
+
 
 def test_embed_returns_empty_when_no_key(monkeypatch):
     for name in _OPENAI_KEY_ENV_ALIASES:
@@ -138,6 +144,7 @@ def test_embed_returns_empty_on_connection_error():
     class BoomHttp:
         def post_json(self, *a, **kw):
             raise ConnectionError("network down")
+
     a = OpenAIEmbeddingAdapter(api_key="k", http_client=BoomHttp())
     assert a.embed("text") == []
 
@@ -146,11 +153,13 @@ def test_embed_returns_empty_on_unexpected_exception():
     class BoomHttp:
         def post_json(self, *a, **kw):
             raise ValueError("simulated boom")
+
     a = OpenAIEmbeddingAdapter(api_key="k", http_client=BoomHttp())
     assert a.embed("text") == []
 
 
 # ── default_embedder_from_env ────────────────────────────────────────────
+
 
 def test_default_embedder_picks_openai_when_key_present(monkeypatch):
     for name in _OPENAI_KEY_ENV_ALIASES:
@@ -176,6 +185,7 @@ def test_default_embedder_picks_openai_via_alias(monkeypatch):
 
 
 # ── Integration with check_drift (embedding mode) ───────────────────────
+
 
 def test_openai_embedder_used_via_set_default(monkeypatch):
     """OpenAIEmbeddingAdapter as the process default — drift check works."""

@@ -2,6 +2,7 @@
 AGENT 21 — Provider Call Node Specialist
 Base provider adapter interface. All adapters inherit this.
 """
+
 from __future__ import annotations
 
 import os

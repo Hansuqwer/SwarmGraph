@@ -1,4 +1,5 @@
 """Shared fixtures (was missing — F-04A backlog item)."""
+
 from __future__ import annotations
 
 import pytest
@@ -40,6 +41,7 @@ def make_vote():
             proposed_action=proposed_action,
             confidence=confidence,
         )
+
     return _make
 
 
@@ -65,4 +67,5 @@ def make_worker_result():
         else:
             kwargs["error_message"] = output or "failure"
         return WorkerResult(**kwargs)
+
     return _make

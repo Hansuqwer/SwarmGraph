@@ -1,4 +1,5 @@
 """Tests for `ai-provider-gateway swarm` subcommand."""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ runner = CliRunner()
 def _hive_swarm_available() -> bool:
     try:
         from swarm import SwarmConfig, SwarmState, build_swarm_graph  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -24,6 +26,7 @@ SKIP_REASON = "hive-swarm not installed in this venv"
 
 
 # ── Help / surface ───────────────────────────────────────────────────────
+
 
 def test_swarm_help_in_root():
     """`ai-provider-gateway --help` must mention `swarm`."""
@@ -42,6 +45,7 @@ def test_swarm_help_works():
 
 # ── Stub mode (no LLM, no network) ───────────────────────────────────────
 
+
 @pytest.mark.skipif(not HIVE_OK, reason=SKIP_REASON)
 def test_swarm_stub_mode_runs_to_completion():
     """Default backend=stub + tier-1 objective → completes deterministically."""
@@ -52,7 +56,7 @@ def test_swarm_stub_mode_runs_to_completion():
     # Tier-1 path doesn't go through workers; stub mode never HITLs
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["objective_hash"]
     assert payload["backend"] == "stub"
@@ -63,16 +67,22 @@ def test_swarm_stub_mode_tier3_runs_workers():
     """Verbose objective → tier-3 → workers fire (deterministic stubs)."""
     result = runner.invoke(
         app,
-        ["swarm",
-         "--prompt", (
-             "implement a comprehensive distributed authentication architecture "
-             "with refresh tokens and audit logging"
-         ),
-         "--backend", "stub", "--json", "--show-workers"],
+        [
+            "swarm",
+            "--prompt",
+            (
+                "implement a comprehensive distributed authentication architecture "
+                "with refresh tokens and audit logging"
+            ),
+            "--backend",
+            "stub",
+            "--json",
+            "--show-workers",
+        ],
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     # stub-mode workers don't generate token counts, but they DO run
     assert payload["worker_count"] >= 1
@@ -81,37 +91,53 @@ def test_swarm_stub_mode_tier3_runs_workers():
 
 # ── Gateway mode (mocked adapter) ────────────────────────────────────────
 
+
 @pytest.mark.skipif(not HIVE_OK, reason=SKIP_REASON)
 def test_swarm_gateway_mode_with_mocked_adapter(monkeypatch):
     """Patch the dispatcher's adapter factory; run swarm in gateway mode."""
     from swarm.llm import dispatch as dispatch_mod
 
     class _FakeAdapter:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat(self, *, messages, max_tokens, temperature, model=None):
             return {
                 "model": model or "kc/kilo-auto/free",
-                "choices": [{"message": {"content": "FAKE: " + messages[-1]["content"][:60]},
-                             "finish_reason": "stop"}],
+                "choices": [
+                    {
+                        "message": {"content": "FAKE: " + messages[-1]["content"][:60]},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {"prompt_tokens": 30, "completion_tokens": 10},
             }
 
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: _FakeAdapter(),
     )
 
     result = runner.invoke(
         app,
-        ["swarm",
-         "--prompt", "implement comprehensive distributed authentication architecture",
-         "--backend", "gateway", "--provider", "9router",
-         "--max-agents", "3",
-         "--json", "--show-workers"],
+        [
+            "swarm",
+            "--prompt",
+            "implement comprehensive distributed authentication architecture",
+            "--backend",
+            "gateway",
+            "--provider",
+            "9router",
+            "--max-agents",
+            "3",
+            "--json",
+            "--show-workers",
+        ],
     )
     assert result.exit_code in (0, 4), f"unexpected exit: {result.exit_code}\n{result.stdout}"
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["backend"] == "gateway"
     assert payload["provider"] == "9router"
@@ -129,8 +155,11 @@ def test_swarm_invalid_topology_rejected():
     )
     # SwarmConfig will raise on the Literal — exit 2
     assert result.exit_code == 2
-    assert "SwarmConfig" in result.stdout or "rejected" in result.stdout.lower() or \
-           "nonexistent" in result.stdout.lower() + (result.stderr or "").lower()
+    assert (
+        "SwarmConfig" in result.stdout
+        or "rejected" in result.stdout.lower()
+        or "nonexistent" in result.stdout.lower() + (result.stderr or "").lower()
+    )
 
 
 @pytest.mark.skipif(not HIVE_OK, reason=SKIP_REASON)
@@ -142,7 +171,7 @@ def test_swarm_thread_id_propagates():
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["swarm_id"] == custom
 
@@ -150,6 +179,7 @@ def test_swarm_thread_id_propagates():
 def test_swarm_explains_when_hive_missing(monkeypatch):
     """If hive-swarm isn't importable, swarm exits 2 with a clear message."""
     import sys
+
     # Force ImportError by removing 'swarm' if present
     saved = sys.modules.get("swarm")
     sys.modules["swarm"] = None  # type: ignore

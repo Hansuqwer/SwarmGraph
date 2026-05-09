@@ -1,4 +1,5 @@
 """Tests for streaming dispatch (StubDispatcher.dispatch_stream + GatewayDispatcher.dispatch_stream)."""
+
 from typing import Any
 
 import pytest
@@ -20,6 +21,7 @@ from swarm.nodes.worker import worker_node
 
 # ── StreamChunk shape ────────────────────────────────────────────────────
 
+
 def test_stream_chunk_dataclass():
     c = StreamChunk(delta="hello", text="hello", index=0)
     assert c.delta == "hello"
@@ -28,6 +30,7 @@ def test_stream_chunk_dataclass():
 
 
 # ── _normalise_stream_chunk ──────────────────────────────────────────────
+
 
 def test_normalise_string_chunk():
     delta, finish = _normalise_stream_chunk("hello")
@@ -43,10 +46,12 @@ def test_normalise_dict_with_delta_field():
 
 def test_normalise_openai_sse_shape():
     raw = {
-        "choices": [{
-            "delta": {"content": "world"},
-            "finish_reason": None,
-        }]
+        "choices": [
+            {
+                "delta": {"content": "world"},
+                "finish_reason": None,
+            }
+        ]
     }
     delta, finish = _normalise_stream_chunk(raw)
     assert delta == "world"
@@ -54,10 +59,12 @@ def test_normalise_openai_sse_shape():
 
 def test_normalise_openai_sse_with_finish():
     raw = {
-        "choices": [{
-            "delta": {"content": "."},
-            "finish_reason": "stop",
-        }]
+        "choices": [
+            {
+                "delta": {"content": "."},
+                "finish_reason": "stop",
+            }
+        ]
     }
     delta, finish = _normalise_stream_chunk(raw)
     assert delta == "."
@@ -68,6 +75,7 @@ def test_normalise_object_with_delta_attr():
     class C:
         delta = "via-attr"
         finish_reason = "stop"
+
     delta, finish = _normalise_stream_chunk(C())
     assert delta == "via-attr"
     assert finish == "stop"
@@ -83,6 +91,7 @@ def test_normalise_unknown_returns_empty():
 
 # ── StubDispatcher.dispatch_stream ───────────────────────────────────────
 
+
 def test_stub_dispatch_stream_emits_single_done_chunk():
     d = StubDispatcher()
     chunks = list(d.dispatch_stream("coder", "implement add"))
@@ -93,6 +102,7 @@ def test_stub_dispatch_stream_emits_single_done_chunk():
 
 
 # ── GatewayDispatcher.dispatch_stream ────────────────────────────────────
+
 
 class _FakeStreamingAdapter:
     def __init__(self, chunks):
@@ -117,11 +127,13 @@ class _FakeStreamingAdapter:
 
 
 def test_gateway_dispatch_stream_collects_chunks():
-    adapter = _FakeStreamingAdapter(chunks=[
-        {"delta": "Hello", "finish_reason": ""},
-        {"delta": " world", "finish_reason": ""},
-        {"delta": "!", "finish_reason": "stop"},
-    ])
+    adapter = _FakeStreamingAdapter(
+        chunks=[
+            {"delta": "Hello", "finish_reason": ""},
+            {"delta": " world", "finish_reason": ""},
+            {"delta": "!", "finish_reason": "stop"},
+        ]
+    )
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: adapter)
     chunks = list(d.dispatch_stream("coder", "say hi"))
 
@@ -132,10 +144,12 @@ def test_gateway_dispatch_stream_collects_chunks():
 
 
 def test_gateway_dispatch_stream_intermediate_chunks_have_running_text():
-    adapter = _FakeStreamingAdapter(chunks=[
-        {"delta": "A", "finish_reason": ""},
-        {"delta": "B", "finish_reason": ""},
-    ])
+    adapter = _FakeStreamingAdapter(
+        chunks=[
+            {"delta": "A", "finish_reason": ""},
+            {"delta": "B", "finish_reason": ""},
+        ]
+    )
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: adapter)
     chunks = list(d.dispatch_stream("coder", "x"))
     # Intermediate
@@ -147,11 +161,13 @@ def test_gateway_dispatch_stream_intermediate_chunks_have_running_text():
 
 def test_gateway_dispatch_stream_falls_back_when_no_chat_stream():
     """Adapter without chat_stream → falls back to dispatch_full + 1 chunk."""
+
     class NoStream:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat(self, *, messages, max_tokens, temperature, model=None):
-            return {"choices": [{"message": {"content": "non-streamed"},
-                                 "finish_reason": "stop"}]}
+            return {"choices": [{"message": {"content": "non-streamed"}, "finish_reason": "stop"}]}
 
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: NoStream())
     chunks = list(d.dispatch_stream("coder", "x"))
@@ -162,7 +178,9 @@ def test_gateway_dispatch_stream_falls_back_when_no_chat_stream():
 
 def test_gateway_dispatch_stream_unconfigured_raises():
     class Unc:
-        def is_configured(self): return False
+        def is_configured(self):
+            return False
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: Unc())
     with pytest.raises(WorkerLLMError, match="not configured"):
         list(d.dispatch_stream("coder", "x"))
@@ -170,9 +188,12 @@ def test_gateway_dispatch_stream_unconfigured_raises():
 
 def test_gateway_dispatch_stream_chat_stream_error_raises_typed():
     class Boom:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat_stream(self, **kw):
             raise RuntimeError("simulated stream failure")
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: Boom())
     with pytest.raises(WorkerLLMError, match="chat_stream"):
         list(d.dispatch_stream("coder", "x"))
@@ -194,6 +215,7 @@ def test_gateway_dispatch_stream_passes_per_role_model():
 
 # ── End-to-end: worker_node with stream_enabled=True ─────────────────────
 
+
 def _make_agent(role="coder", task="x", config=None):
     cfg = config or SwarmConfig(
         llm_backend="gateway",
@@ -201,34 +223,46 @@ def _make_agent(role="coder", task="x", config=None):
     )
     settings = _llm_settings_from_config(cfg)
     shared = {
-        "iteration": 1, "objective": "x",
-        "retrieved_patterns": [], "llm_settings": settings,
+        "iteration": 1,
+        "objective": "x",
+        "retrieved_patterns": [],
+        "llm_settings": settings,
     }
     swarm_task = SwarmTask(
-        task_id="t1", description=task, priority="high",
-        assigned_to=f"{role}-1", required_role=role,
+        task_id="t1",
+        description=task,
+        priority="high",
+        assigned_to=f"{role}-1",
+        required_role=role,
     )
     swarm_task.assign(f"{role}-1")
     directive = QueenDirective(
-        directive_id="dir-t1", task=swarm_task,
-        assigned_agent_id=f"{role}-1", assigned_role=role,
+        directive_id="dir-t1",
+        task=swarm_task,
+        assigned_agent_id=f"{role}-1",
+        assigned_role=role,
         objective_hash="deadbeefcafebabe",
         shared_context=shared,
     )
     return AgentState(
-        agent_id=f"{role}-1", role=role,
-        assigned_task_id="t1", task_description=task,
+        agent_id=f"{role}-1",
+        role=role,
+        assigned_task_id="t1",
+        task_description=task,
         task_context=directive.model_dump(mode="json"),
     )
 
 
 def test_worker_consumes_stream_when_enabled(monkeypatch):
-    adapter = _FakeStreamingAdapter(chunks=[
-        {"delta": "def add(a, b):", "finish_reason": ""},
-        {"delta": "\n    return a + b", "finish_reason": "stop"},
-    ])
+    adapter = _FakeStreamingAdapter(
+        chunks=[
+            {"delta": "def add(a, b):", "finish_reason": ""},
+            {"delta": "\n    return a + b", "finish_reason": "stop"},
+        ]
+    )
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: adapter,
     )
     agent = _make_agent()

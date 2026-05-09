@@ -6,6 +6,7 @@ F-06C: stable_hash docstring caveat
 F-W6 : delegates hashing/time helpers to swarm_shared (preserving local re-exports
        for backwards compatibility).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,7 +24,7 @@ MUTABLE_CONFIG = ConfigDict(
     extra="forbid",
     validate_assignment=True,
     use_enum_values=True,
-    revalidate_instances="never",   # F-06A: explicit (was implicit)
+    revalidate_instances="never",  # F-06A: explicit (was implicit)
 )
 
 # For value objects / config that should never change after creation
@@ -45,12 +46,14 @@ RESULT_CONFIG = ConfigDict(
 
 # ── Base classes ───────────────────────────────────────────────────────────
 
+
 class HardenedModel(BaseModel):
     """Base for all mutable swarm models.
 
     - extra='forbid' → unknown fields raise ValidationError
     - validate_assignment → attribute mutations are validated
     """
+
     model_config = MUTABLE_CONFIG
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -69,6 +72,7 @@ class FrozenModel(BaseModel):
     - extra='forbid'
     - frozen=True → any mutation attempt raises ValidationError
     """
+
     model_config = FROZEN_CONFIG
 
 

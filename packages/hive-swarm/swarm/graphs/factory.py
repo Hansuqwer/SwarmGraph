@@ -18,6 +18,7 @@ Why dedupe is correct semantically:
   distinct calls — they always represent state replay. Merging by key
   preserves the latest values (LATER wins on key collision).
 """
+
 from __future__ import annotations
 
 from typing import Annotated, Any, TypedDict
@@ -37,6 +38,7 @@ from ..nodes.worker import collect_results_node, worker_node
 try:
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.graph import END, START, StateGraph
+
     _HAS_LANGGRAPH = True
 except ImportError:  # pragma: no cover
     _HAS_LANGGRAPH = False
@@ -47,6 +49,7 @@ except ImportError:  # pragma: no cover
 
 
 # ── F-13A-CORR1: dedupe-merge reducer for worker_results ─────────────────
+
 
 def _merge_worker_results(
     left: list[dict[str, Any]] | None,
@@ -103,11 +106,13 @@ def _merge_worker_results(
 
 # ── State schema (v4 + F-13A-CORR1) ──────────────────────────────────────
 
+
 class _SwarmGraphState(TypedDict, total=False):
     """LangGraph state schema with explicit reducers.
 
     F-13A-CORR1: worker_results uses dedupe-merge instead of operator.add.
     """
+
     worker_results: Annotated[list[dict[str, Any]], _merge_worker_results]
     swarm_id: str
     objective: str
@@ -143,9 +148,11 @@ class _SwarmGraphState(TypedDict, total=False):
 
 # ── Main factory (unchanged contract) ────────────────────────────────────
 
+
 def _queen_passthrough(state: dict[str, Any]) -> dict[str, Any]:
     """Queen fan-out is emitted by conditional edges, not node updates."""
     return state
+
 
 def build_swarm_graph(
     config: SwarmConfig,
@@ -193,15 +200,18 @@ def build_swarm_graph(
     builder.add_edge("collect_results", "consensus_node")
 
     builder.add_conditional_edges(
-        "consensus_node", route_after_consensus,
+        "consensus_node",
+        route_after_consensus,
         {"approval_node": "approval_node", "judge_node": "judge_node", "end": END},
     )
     builder.add_conditional_edges(
-        "approval_node", route_after_approval,
+        "approval_node",
+        route_after_approval,
         {"judge_node": "judge_node", "end": END},
     )
     builder.add_conditional_edges(
-        "judge_node", route_after_judge,
+        "judge_node",
+        route_after_judge,
         {"distill_node": "distill_node", "route_task": "route_task", "end": END},
     )
 
@@ -214,12 +224,11 @@ def build_swarm_graph(
 
     recursion_limit = max(25, config.max_iterations * 8)
 
-    return builder.compile(checkpointer=cp).with_config(
-        {"recursion_limit": recursion_limit}
-    )
+    return builder.compile(checkpointer=cp).with_config({"recursion_limit": recursion_limit})
 
 
 # ── Mock graph (uses the same dedupe reducer for parity) ─────────────────
+
 
 class _MockCompiledGraph:
     def __init__(

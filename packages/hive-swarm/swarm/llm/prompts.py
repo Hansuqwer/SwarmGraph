@@ -4,6 +4,7 @@ Tunable in one place — no other file depends on the wording.
 Each prompt is concise (≤ 80 tokens) so it leaves room for the user prompt
 even with small-context models.
 """
+
 from __future__ import annotations
 
 DEFAULT_SYSTEM_PROMPT = (

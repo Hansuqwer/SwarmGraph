@@ -3,6 +3,7 @@
 No live localhost dependency: the HTTP layer is mocked via a fake
 _HttpClient passed into the adapter constructor.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ from ai_provider_swarm_gateway.providers.nine_router_adapter import (
 
 # ── Fake HTTP transport ──────────────────────────────────────────────────
 
+
 class FakeHttpClient:
     """Records the request, returns a scripted response."""
 
@@ -33,23 +35,26 @@ class FakeHttpClient:
         self.calls: list[dict[str, Any]] = []
 
     def post_json(self, url, payload, *, api_key, timeout, extra_headers=None):
-        self.calls.append({
-            "url": url,
-            "payload": payload,
-            "api_key": api_key,
-            "timeout": timeout,
-            "extra_headers": dict(extra_headers or {}),
-        })
+        self.calls.append(
+            {
+                "url": url,
+                "payload": payload,
+                "api_key": api_key,
+                "timeout": timeout,
+                "extra_headers": dict(extra_headers or {}),
+            }
+        )
         return self.status, self.body, self.headers
 
 
 # ── Parser quirk ─────────────────────────────────────────────────────────
 
+
 def test_parse_strips_trailing_data_done():
     body = (
         '{"id": "x", "model": "kc/kilo-auto/free", '
         '"choices": [{"message": {"content": "pong"}, "finish_reason": "stop"}]}'
-        '\n\ndata: [DONE]\n'
+        "\n\ndata: [DONE]\n"
     )
     data = _parse_quirky_body(body)
     assert data["choices"][0]["message"]["content"] == "pong"
@@ -65,7 +70,7 @@ def test_parse_data_in_string_is_not_truncated_prematurely():
     """The 'data:' marker is only honoured when at the start of a line."""
     body = (
         '{"choices": [{"message": {"content": "the data: from server"}, "finish_reason": "stop"}]}'
-        '\ndata: [DONE]'
+        "\ndata: [DONE]"
     )
     data = _parse_quirky_body(body)
     assert "the data: from server" in data["choices"][0]["message"]["content"]
@@ -83,6 +88,7 @@ def test_parse_only_sentinel_raises():
 
 # ── Content extraction (three-level fallback) ────────────────────────────
 
+
 def test_extract_content_primary():
     data = {"choices": [{"message": {"content": "main"}, "finish_reason": "stop"}]}
     content, fr = _extract_content(data)
@@ -92,10 +98,12 @@ def test_extract_content_primary():
 
 def test_extract_content_falls_back_to_reasoning():
     data = {
-        "choices": [{
-            "message": {"content": "", "reasoning": "thinking out loud"},
-            "finish_reason": None,
-        }]
+        "choices": [
+            {
+                "message": {"content": "", "reasoning": "thinking out loud"},
+                "finish_reason": None,
+            }
+        ]
     }
     content, fr = _extract_content(data)
     assert content == "thinking out loud"
@@ -121,51 +129,78 @@ def test_extract_content_no_choices_raises():
 
 # ── API-key resolution + aliases ─────────────────────────────────────────
 
+
 def test_explicit_key_wins(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "from-env")
     assert _resolve_api_key("explicit") == "explicit"
 
 
 def test_resolves_from_primary_env(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "primary-value")
     assert _resolve_api_key() == "primary-value"
 
 
 def test_alias_router_api_key(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("ROUTER_API_KEY", "via-router-alias")
     assert _resolve_api_key() == "via-router-alias"
 
 
 def test_alias_kilo_code(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("KILO_CODE_API_KEY", "via-kilo")
     assert _resolve_api_key() == "via-kilo"
 
 
 def test_alias_openai_fallback(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "openai-fallback")
     assert _resolve_api_key() == "openai-fallback"
 
 
 def test_no_key_returns_none(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     assert _resolve_api_key() is None
 
 
 # ── Adapter construction + defaults ──────────────────────────────────────
+
 
 def test_adapter_defaults(monkeypatch):
     monkeypatch.delenv("AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", raising=False)
@@ -190,8 +225,13 @@ def test_is_configured_true_with_explicit_key():
 
 
 def test_is_configured_false_without_key(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     a = NineRouterAdapter()
     assert a.is_configured() is False
@@ -204,7 +244,7 @@ PONG_BODY = (
     '"choices": [{"message": {"role": "assistant", "content": "pong"}, '
     '"finish_reason": "stop"}], '
     '"usage": {"prompt_tokens": 8, "completion_tokens": 1, "total_tokens": 9}}'
-    '\n\ndata: [DONE]\n'
+    "\n\ndata: [DONE]\n"
 )
 
 
@@ -243,10 +283,12 @@ def test_chat_sends_correct_payload():
 def test_chat_accepts_message_list():
     fake = FakeHttpClient(status=200, body=PONG_BODY)
     a = NineRouterAdapter(api_key="k", http_client=fake)
-    a.chat(messages=[
-        {"role": "system", "content": "be terse"},
-        {"role": "user", "content": "ping?"},
-    ])
+    a.chat(
+        messages=[
+            {"role": "system", "content": "be terse"},
+            {"role": "user", "content": "ping?"},
+        ]
+    )
     assert fake.calls[0]["payload"]["messages"] == [
         {"role": "system", "content": "be terse"},
         {"role": "user", "content": "ping?"},
@@ -264,8 +306,13 @@ def test_chat_aliases_all_dispatch_to_same_logic():
 
 
 def test_chat_without_api_key_raises(monkeypatch):
-    for name in ("AI_PROVIDER_GATEWAY_9ROUTER_API_KEY", "ROUTER_API_KEY",
-                 "NINEROUTER_API_KEY", "KILO_CODE_API_KEY", "OPENAI_API_KEY"):
+    for name in (
+        "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
+        "ROUTER_API_KEY",
+        "NINEROUTER_API_KEY",
+        "KILO_CODE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     fake = FakeHttpClient(status=200, body=PONG_BODY)
     a = NineRouterAdapter(http_client=fake)

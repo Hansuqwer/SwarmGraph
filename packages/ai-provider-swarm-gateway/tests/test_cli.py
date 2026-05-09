@@ -1,4 +1,5 @@
 """CLI smoke tests — verifies entry point + quota commands work end-to-end."""
+
 import json
 import re
 from pathlib import Path
@@ -35,8 +36,18 @@ def test_quota_increment_persists(tmp_path: Path):
     fp = tmp_path / "usage.json"
     result = runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "5",
-         "--tokens", "120", "--storage", str(fp)],
+        [
+            "quota",
+            "increment",
+            "--provider",
+            "openai",
+            "--requests",
+            "5",
+            "--tokens",
+            "120",
+            "--storage",
+            str(fp),
+        ],
     )
     assert result.exit_code == 0
     assert "requests=5" in result.stdout
@@ -52,8 +63,7 @@ def test_quota_show_after_increment_json(tmp_path: Path):
     fp = tmp_path / "usage.json"
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "anthropic", "--tokens", "999",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "anthropic", "--tokens", "999", "--storage", str(fp)],
     )
     result = runner.invoke(app, ["quota", "show", "--storage", str(fp), "--json"])
     assert result.exit_code == 0
@@ -65,8 +75,7 @@ def test_quota_reset_skips_confirm(tmp_path: Path):
     fp = tmp_path / "usage.json"
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "10",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--requests", "10", "--storage", str(fp)],
     )
     result = runner.invoke(
         app,
@@ -75,8 +84,9 @@ def test_quota_reset_skips_confirm(tmp_path: Path):
     assert result.exit_code == 0
     assert "reset" in result.stdout.lower()
     # Counter reset to 0
-    after = runner.invoke(app, ["quota", "show", "--provider", "openai",
-                                "--storage", str(fp), "--json"])
+    after = runner.invoke(
+        app, ["quota", "show", "--provider", "openai", "--storage", str(fp), "--json"]
+    )
     payload = json.loads(after.stdout)
     assert payload[0]["used_requests"] == 0
 
@@ -85,8 +95,7 @@ def test_quota_increment_rejects_negative(tmp_path: Path):
     fp = tmp_path / "usage.json"
     result = runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "-1",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--requests", "-1", "--storage", str(fp)],
     )
     # Typer enforces min=0 → non-zero exit
     assert result.exit_code != 0
@@ -96,11 +105,12 @@ def test_quota_increment_zero_zero_rejected(tmp_path: Path):
     fp = tmp_path / "usage.json"
     result = runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--storage", str(fp)],
     )
     assert result.exit_code == 2
-    assert "Nothing to increment" in result.stdout or "Nothing to increment" in (result.stderr or "")
+    assert "Nothing to increment" in result.stdout or "Nothing to increment" in (
+        result.stderr or ""
+    )
 
 
 def test_providers_list_reads_registry():

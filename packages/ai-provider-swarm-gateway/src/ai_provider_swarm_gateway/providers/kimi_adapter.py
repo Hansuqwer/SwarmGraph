@@ -1,12 +1,14 @@
 """Moonshot Kimi adapter stub — requires MOONSHOT_KIMI_API_KEY."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class KimiAdapter(ProviderAdapter):
-    provider_id   = "moonshot_kimi"
+    provider_id = "moonshot_kimi"
     default_model = "moonshot-v1-8k"
-    _base_url     = "https://api.moonshot.cn/v1"
+    _base_url = "https://api.moonshot.cn/v1"
 
     def is_configured(self) -> bool:
         return bool(self._get_env("MOONSHOT_KIMI_API_KEY"))
@@ -16,7 +18,10 @@ class KimiAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import openai
-            client = openai.OpenAI(api_key=self._get_env("MOONSHOT_KIMI_API_KEY"), base_url=self._base_url)
+
+            client = openai.OpenAI(
+                api_key=self._get_env("MOONSHOT_KIMI_API_KEY"), base_url=self._base_url
+            )
             resp = client.chat.completions.create(
                 model=model or self.default_model,
                 messages=[{"role": "user", "content": prompt}],

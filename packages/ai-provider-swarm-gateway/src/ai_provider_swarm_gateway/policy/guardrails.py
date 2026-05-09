@@ -4,6 +4,7 @@ AGENT 26 — Anti-Drift Specialist
 
 Policy guardrails — blocks all quota evasion, unsafe automation, and account-rotation behaviors.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -60,8 +61,7 @@ def validate_provider_policy(provider: ProviderInfo) -> list[str]:
     # No API access confirmed
     if provider.quota.api_access_available is False:
         warnings.append(
-            f"[{provider.provider_id}] API access is NOT available. "
-            "Only web usage confirmed."
+            f"[{provider.provider_id}] API access is NOT available. Only web usage confirmed."
         )
 
     # Requires payment but api_access_available is true — paid API
@@ -104,8 +104,7 @@ def reject_quota_evasion(request_metadata: dict[str, Any]) -> list[str]:
     for k, v in meta_lower.items():
         if any(f in v for f in _PROHIBITED_FLAGS):
             violations.append(
-                f"POLICY VIOLATION: Prohibited value in metadata key '{k}'. "
-                "Request blocked."
+                f"POLICY VIOLATION: Prohibited value in metadata key '{k}'. Request blocked."
             )
 
     return violations

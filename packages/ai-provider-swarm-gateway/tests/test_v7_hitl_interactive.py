@@ -1,4 +1,5 @@
 """Tests for interactive HITL prompt — mocked stdin."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -83,8 +84,10 @@ def test_reviewer_id_falls_back_to_user_env(monkeypatch):
 
 def test_eof_returns_none(monkeypatch):
     """Operator hits Ctrl-D / pipe closes → treated as deny by caller."""
+
     def boom(*a, **kw):
         raise EOFError()
+
     monkeypatch.setattr("typer.prompt", boom)
     out = _interactive_hitl_prompt("s1", _payload())
     assert out is None
@@ -93,6 +96,7 @@ def test_eof_returns_none(monkeypatch):
 def test_keyboard_interrupt_returns_none(monkeypatch):
     def boom(*a, **kw):
         raise KeyboardInterrupt()
+
     monkeypatch.setattr("typer.prompt", boom)
     out = _interactive_hitl_prompt("s1", _payload())
     assert out is None

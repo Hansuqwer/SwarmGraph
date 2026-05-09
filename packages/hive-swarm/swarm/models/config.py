@@ -14,6 +14,7 @@ v8 NEW fields:
 
 All defaults preserve v7.1 behaviour.
 """
+
 from __future__ import annotations
 
 import re
@@ -77,7 +78,9 @@ class SwarmConfig(FrozenModel):
 
     # ── Memory / SONA ─────────────────────────────────────────────────────
     memory_namespace: str = Field(
-        default="default", min_length=1, max_length=64,
+        default="default",
+        min_length=1,
+        max_length=64,
         pattern=r"^[a-zA-Z0-9_\-]+$",
     )
     memory_max_entries: int = Field(default=1000, ge=10, le=100_000)
@@ -202,8 +205,7 @@ class SwarmConfig(FrozenModel):
                 raise ValueError("llm_role_provider_overrides must be dict[str, str]")
             if not _PROVIDER_NAME_RE.match(provider):
                 raise ValueError(
-                    f"override provider {provider!r} for role {role!r} "
-                    "must match [a-zA-Z0-9_-]+"
+                    f"override provider {provider!r} for role {role!r} must match [a-zA-Z0-9_-]+"
                 )
         return v
 
@@ -215,8 +217,7 @@ class SwarmConfig(FrozenModel):
                 raise ValueError("llm_role_model_overrides must be dict[str, str]")
             if model_id and not _MODEL_NAME_RE.match(model_id):
                 raise ValueError(
-                    f"override model {model_id!r} for role {role!r} "
-                    "must match [a-zA-Z0-9_\\-/:.]+"
+                    f"override model {model_id!r} for role {role!r} must match [a-zA-Z0-9_\\-/:.]+"
                 )
         return v
 
@@ -226,8 +227,7 @@ class SwarmConfig(FrozenModel):
         # Only enforce when non-empty (default value passes)
         if v and not _ENV_VAR_NAME_RE.match(v):
             raise ValueError(
-                f"audit_secret_env must be a valid env var name "
-                f"[A-Z_][A-Z0-9_]*; got {v!r}"
+                f"audit_secret_env must be a valid env var name [A-Z_][A-Z0-9_]*; got {v!r}"
             )
         return v
 
@@ -256,22 +256,23 @@ class SwarmConfig(FrozenModel):
     @model_validator(mode="after")
     def _bft_quorum_reasonable(self) -> "SwarmConfig":
         if self.consensus_protocol == "bft" and self.bft_quorum_fraction == 1.0:
-            raise ValueError(
-                "bft_quorum_fraction=1.0 defeats fault tolerance; use < 1.0 for BFT"
-            )
+            raise ValueError("bft_quorum_fraction=1.0 defeats fault tolerance; use < 1.0 for BFT")
         return self
 
     @model_validator(mode="after")
     def _audit_kinds_known(self) -> "SwarmConfig":
         valid = {
-            "consensus_result", "approval_decision", "worker_result",
-            "stream_hitl_decision", "swarm_init", "swarm_complete",
+            "consensus_result",
+            "approval_decision",
+            "worker_result",
+            "stream_hitl_decision",
+            "swarm_init",
+            "swarm_complete",
         }
         bad = set(self.audit_kinds) - valid
         if bad:
             raise ValueError(
-                f"audit_kinds contains unknown kinds: {sorted(bad)}; "
-                f"valid: {sorted(valid)}"
+                f"audit_kinds contains unknown kinds: {sorted(bad)}; valid: {sorted(valid)}"
             )
         return self
 
@@ -286,10 +287,8 @@ class SwarmConfig(FrozenModel):
         """Substitute {tenant} and {swarm_id} placeholders in audit_log_path."""
         if not self.audit_log_path:
             return ""
-        return (
-            self.audit_log_path
-            .replace("{tenant}", tenant_id or "default")
-            .replace("{swarm_id}", swarm_id)
+        return self.audit_log_path.replace("{tenant}", tenant_id or "default").replace(
+            "{swarm_id}", swarm_id
         )
 
 

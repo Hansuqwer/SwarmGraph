@@ -1,4 +1,5 @@
 """Bounded-list helpers (F-W6A consolidation; replaces 3 duplications of `_cap_lists`)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,8 +11,9 @@ T = TypeVar("T")
 @dataclass(frozen=True)
 class CappedListConfig:
     """How to cap a list when it exceeds max_len."""
+
     max_len: int
-    keep_strategy: str = "tail"   # "tail" | "head_plus_tail" | "head"
+    keep_strategy: str = "tail"  # "tail" | "head_plus_tail" | "head"
 
     def __post_init__(self) -> None:
         if self.max_len < 1:
@@ -26,13 +28,13 @@ def cap_list(items: list[T], cfg: CappedListConfig) -> list[T]:
     if n <= cfg.max_len:
         return items
     if cfg.keep_strategy == "tail":
-        return items[-cfg.max_len:]
+        return items[-cfg.max_len :]
     if cfg.keep_strategy == "head":
         return items[: cfg.max_len]
     # head_plus_tail: keep first 1 + last (max_len - 1)
     if cfg.max_len < 2:
         return items[: cfg.max_len]
-    return items[:1] + items[-(cfg.max_len - 1):]
+    return items[:1] + items[-(cfg.max_len - 1) :]
 
 
 def bounded_list_validator(

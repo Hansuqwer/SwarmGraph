@@ -1,4 +1,5 @@
 """F-04C / F-19A: HITL single-use guard test."""
+
 import pytest
 
 from swarm.models.config import SwarmConfig
@@ -33,7 +34,7 @@ def test_approval_pass_through_when_not_required():
 def test_approval_consumed_blocks_replay():
     """F-19A: second invocation against same state is blocked."""
     s = _state_awaiting_approval()
-    s.approval_consumed = True   # pretend already approved once
+    s.approval_consumed = True  # pretend already approved once
     out = approval_node(s.to_json_dict())
     assert out["status"] == "failed"
     assert out["failure_cause"] == "approval_replay"
@@ -45,6 +46,7 @@ def test_approval_token_required_for_resume():
     # invocation succeeds. We simulate token mismatch by pretending the resume
     # payload has a different token.
     from swarm.models.agent import ApprovalDecision
+
     # Validate the typed shape works
     d = ApprovalDecision(
         decision="approve",
@@ -55,18 +57,22 @@ def test_approval_token_required_for_resume():
     assert d.reviewer_id == "alice"
     # Strict shape rejects unknown fields
     from pydantic import ValidationError
+
     with pytest.raises(ValidationError):
-        ApprovalDecision.model_validate({
-            "decision": "approve",
-            "reviewer_id": "alice",
-            "decision_token": "abc12345",
-            "extra_field": "bad",
-        })
+        ApprovalDecision.model_validate(
+            {
+                "decision": "approve",
+                "reviewer_id": "alice",
+                "decision_token": "abc12345",
+                "extra_field": "bad",
+            }
+        )
 
 
 def test_approval_decision_decision_literal():
     """F-19B: decision must be 'approve' or 'deny'."""
     from pydantic import ValidationError
     from swarm.models.agent import ApprovalDecision
+
     with pytest.raises(ValidationError):
         ApprovalDecision(decision="maybe", reviewer_id="alice", decision_token="abc12345")

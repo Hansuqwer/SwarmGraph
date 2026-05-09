@@ -3,6 +3,7 @@
 Each test is named for its canonical fix ID so failures point straight at
 the responsible patch.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,6 +24,7 @@ from swarm.nodes.queen import _llm_settings_from_config
 
 
 # ── F-13A-CORR1: dedupe-merge reducer for worker_results ────────────────
+
 
 def test_merge_worker_results_idempotent_on_replay():
     """The 80-vs-5 fix: re-emitting the same WorkerResult dict must NOT
@@ -74,22 +76,22 @@ def test_merge_worker_results_tolerates_malformed():
     """Defensive: dicts missing agent_id/task_id are still merged via repr key."""
     weird = {"some_other_field": "value"}
     merged = _merge_worker_results([weird], [weird])
-    assert len(merged) == 1   # de-duped via repr fallback
+    assert len(merged) == 1  # de-duped via repr fallback
 
 
 def test_no_more_iteration_storm_doubling():
     """Simulates 5 fan-outs replayed 16 times; result should be 5, not 80."""
     fanout = [
-        {"agent_id": f"role-{i}", "task_id": f"t-1-{i}", "output": f"o-{i}"}
-        for i in range(5)
+        {"agent_id": f"role-{i}", "task_id": f"t-1-{i}", "output": f"o-{i}"} for i in range(5)
     ]
     state = []
-    for _ in range(16):   # 16 iterations
+    for _ in range(16):  # 16 iterations
         state = _merge_worker_results(state, fanout)
-    assert len(state) == 5   # NOT 80
+    assert len(state) == 5  # NOT 80
 
 
 # ── F-18-CORR2: threshold=0 coalesces to mode-off ──────────────────────
+
 
 def _state(mode="keyword", threshold=0.4, enabled=True):
     cfg = SwarmConfig(
@@ -120,10 +122,11 @@ def test_threshold_zero_off_mode_passes_too():
 def test_nonzero_threshold_still_works_in_keyword():
     """Sanity: F-18-CORR2 only applies when threshold == 0."""
     s = _state(mode="keyword", threshold=0.5)
-    assert s.check_drift("def foo(): pass") is False   # zero overlap
+    assert s.check_drift("def foo(): pass") is False  # zero overlap
 
 
 # ── F-15-FWD1: queen forwards stream + cost ─────────────────────────────
+
 
 def test_queen_forwards_stream_enabled_to_workers():
     cfg = SwarmConfig(llm_stream_enabled=True)
@@ -146,6 +149,7 @@ def test_queen_default_settings_match_back_compat():
 
 
 # ── F-17-ENV1: HIVE_SWARM_COST_TRACKING env var ─────────────────────────
+
 
 def test_env_bool_true_strings():
     for s in ("1", "true", "TRUE", "yes", "on"):
@@ -184,11 +188,7 @@ def test_cost_tracking_env_enables_explicitly(monkeypatch):
 def test_cost_tracking_env_overrides_queen_setting(monkeypatch):
     """Env wins over queen-forwarded settings."""
     monkeypatch.setenv("HIVE_SWARM_COST_TRACKING", "0")
-    ctx = {
-        "shared_context": {
-            "llm_settings": {"cost_tracking_enabled": True}
-        }
-    }
+    ctx = {"shared_context": {"llm_settings": {"cost_tracking_enabled": True}}}
     settings = resolve_llm_settings(ctx, role="coder")
     assert settings["cost_tracking_enabled"] is False
 

@@ -3,6 +3,7 @@
 Core audit verification stays in :mod:`swarm_shared.audit` and remains
 order-sensitive. Backends only load or append records.
 """
+
 from __future__ import annotations
 
 import time

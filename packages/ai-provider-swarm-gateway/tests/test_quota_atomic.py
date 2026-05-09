@@ -1,4 +1,5 @@
 """F-29A + F-29B + F-29-PERF1 + F-29-LG1 verification."""
+
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ import pytest
 def test_tracker_storage_path_injectable(tmp_path: Path):
     """F-29-LG1."""
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     custom = tmp_path / "custom_usage.json"
     t = QuotaTracker(storage_path=custom)
     t.increment("openai", requests=1)
@@ -21,6 +23,7 @@ def test_tracker_storage_path_injectable(tmp_path: Path):
 def test_tracker_atomic_write_no_temp_files_left(tmp_path: Path):
     """F-29A: tempfile cleanup."""
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     t = QuotaTracker(storage_path=tmp_path / "usage.json")
     t.increment("openai", requests=5, tokens=100)
     leftover = [p for p in tmp_path.iterdir() if p.name.endswith(".tmp")]
@@ -29,6 +32,7 @@ def test_tracker_atomic_write_no_temp_files_left(tmp_path: Path):
 
 def test_tracker_increment_persists(tmp_path: Path):
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     fp = tmp_path / "usage.json"
     t1 = QuotaTracker(storage_path=fp)
     t1.increment("openai", requests=3, tokens=50)
@@ -41,6 +45,7 @@ def test_tracker_increment_persists(tmp_path: Path):
 
 def test_tracker_rejects_negative_increment(tmp_path: Path):
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     t = QuotaTracker(storage_path=tmp_path / "usage.json")
     with pytest.raises(ValueError):
         t.increment("openai", requests=-1)
@@ -55,6 +60,7 @@ def test_tracker_concurrent_increments_no_loss(tmp_path: Path):
     invariant under tight loops (the lock serialises reads + writes).
     """
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     fp = tmp_path / "usage.json"
     t = QuotaTracker(storage_path=fp)
     for _ in range(50):
@@ -67,6 +73,7 @@ def test_tracker_concurrent_increments_no_loss(tmp_path: Path):
 def test_tracker_lazy_load(tmp_path: Path):
     """F-29-PERF1: nothing happens until the first get_usage / increment."""
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     fp = tmp_path / "usage.json"
     t = QuotaTracker(storage_path=fp)
     # No file accesses yet
@@ -84,6 +91,7 @@ def test_tracker_handles_corrupt_json_gracefully(tmp_path: Path):
     """If the storage file is corrupt, treat as empty (and atomic writes prevent
     further corruption going forward)."""
     from ai_provider_swarm_gateway.quota.tracker import QuotaTracker
+
     fp = tmp_path / "usage.json"
     fp.write_text("{not json at all}")
     t = QuotaTracker(storage_path=fp)

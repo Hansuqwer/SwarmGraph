@@ -1,4 +1,5 @@
 """Tests for swarm.llm.embeddings."""
+
 import math
 
 import pytest
@@ -14,6 +15,7 @@ from swarm.llm.embeddings import (
 
 
 # ── Cosine similarity helper ─────────────────────────────────────────────
+
 
 def test_cosine_identical_vectors():
     v = [1.0, 0.0, 0.0]
@@ -48,6 +50,7 @@ def test_cosine_zero_norm_returns_zero():
 
 # ── NullEmbedder ─────────────────────────────────────────────────────────
 
+
 def test_null_embedder_returns_empty():
     e = NullEmbedder()
     assert e.embed("anything") == []
@@ -55,6 +58,7 @@ def test_null_embedder_returns_empty():
 
 
 # ── HashEmbedder ─────────────────────────────────────────────────────────
+
 
 def test_hash_embedder_deterministic():
     e = HashEmbedder()
@@ -113,10 +117,13 @@ def test_hash_embedder_similar_topics_correlate_above_random():
 
 # ── GatewayEmbedder ──────────────────────────────────────────────────────
 
+
 def test_gateway_embedder_falls_back_when_adapter_missing():
     """If adapter_factory raises or has no embed, returns []."""
+
     def boom(pid):
         raise RuntimeError("no such adapter")
+
     e = GatewayEmbedder(adapter_factory=boom)
     assert e.embed("text") == []
 
@@ -124,6 +131,7 @@ def test_gateway_embedder_falls_back_when_adapter_missing():
 def test_gateway_embedder_falls_back_when_adapter_has_no_embed():
     class NoEmbed:
         pass
+
     e = GatewayEmbedder(adapter_factory=lambda pid: NoEmbed())
     assert e.embed("text") == []
 
@@ -132,26 +140,31 @@ def test_gateway_embedder_uses_embed_method():
     class FakeAdapter:
         def embed(self, text):
             return [0.1, 0.2, 0.3]
+
     e = GatewayEmbedder(adapter_factory=lambda pid: FakeAdapter())
     assert e.embed("text") == [0.1, 0.2, 0.3]
 
 
 def test_gateway_embedder_caches_adapter():
     calls: list[str] = []
+
     class FakeAdapter:
         def embed(self, text):
             return [0.0]
+
     def factory(pid):
         calls.append(pid)
         return FakeAdapter()
+
     e = GatewayEmbedder(provider_id="x", adapter_factory=factory)
     e.embed("a")
     e.embed("b")
     e.embed("c")
-    assert len(calls) == 1   # cached after first lookup
+    assert len(calls) == 1  # cached after first lookup
 
 
 # ── Default embedder registry ────────────────────────────────────────────
+
 
 def test_default_embedder_is_null_initially():
     # Reset to ensure clean state

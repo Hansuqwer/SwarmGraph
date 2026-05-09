@@ -1,4 +1,5 @@
 """Tests for the 3-mode anti-drift dispatch in SwarmState.check_drift."""
+
 import pytest
 
 from swarm.llm.embeddings import HashEmbedder, NullEmbedder
@@ -21,6 +22,7 @@ def _state(*, mode="keyword", threshold=0.4, enabled=True):
 
 # ── mode="off" ───────────────────────────────────────────────────────────
 
+
 def test_mode_off_always_returns_true():
     s = _state(mode="off")
     # Even completely unrelated text passes
@@ -34,6 +36,7 @@ def test_mode_off_assert_no_drift_does_not_raise():
 
 # ── mode="keyword" (back-compat with v5) ─────────────────────────────────
 
+
 def test_mode_keyword_high_overlap_passes():
     s = _state(mode="keyword", threshold=0.4)
     candidate = "implement OAuth refresh token rotation logic in Python"
@@ -42,7 +45,7 @@ def test_mode_keyword_high_overlap_passes():
 
 def test_mode_keyword_low_overlap_fails():
     s = _state(mode="keyword", threshold=0.4)
-    candidate = "def foo(): return 42"   # no shared tokens
+    candidate = "def foo(): return 42"  # no shared tokens
     assert s.check_drift(candidate) is False
 
 
@@ -59,6 +62,7 @@ def test_anti_drift_disabled_overrides_mode():
 
 
 # ── mode="embedding" ─────────────────────────────────────────────────────
+
 
 def test_mode_embedding_with_null_falls_back_to_keyword():
     """If no embedder bound, should fall back to keyword detection (not crash)."""
@@ -81,7 +85,7 @@ def test_mode_embedding_with_hash_embedder_passes_for_similar_text():
 def test_mode_embedding_with_hash_embedder_fails_for_dissimilar_text():
     s = _state(mode="embedding", threshold=0.5)
     embedder = HashEmbedder()
-    candidate = "rename variable foo bar"   # totally different vocabulary
+    candidate = "rename variable foo bar"  # totally different vocabulary
     assert s.check_drift(candidate, embedder=embedder) is False
 
 
@@ -94,7 +98,7 @@ def test_mode_embedding_threshold_zero_always_passes():
 
 def test_mode_embedding_embedder_returning_empty_falls_back():
     """An embedder that returns [] should trigger keyword fallback."""
-    s = _state(mode="keyword", threshold=0.4)   # set up keyword fallback expectations
+    s = _state(mode="keyword", threshold=0.4)  # set up keyword fallback expectations
     s2 = _state(mode="embedding", threshold=0.4)
     candidate = "implement OAuth refresh token logic"
     # NullEmbedder returns [] → fallback to keyword
@@ -104,9 +108,11 @@ def test_mode_embedding_embedder_returning_empty_falls_back():
 
 def test_mode_embedding_embedder_raising_falls_back():
     """If embedder raises, should fall back to keyword (not crash)."""
+
     class BoomEmbedder:
         def embed(self, text):
             raise RuntimeError("simulated embedder failure")
+
     s = _state(mode="embedding", threshold=0.4)
     candidate = "implement OAuth refresh token rotation"
     # Embedder raises → fallback to keyword → high overlap → True
@@ -114,6 +120,7 @@ def test_mode_embedding_embedder_raising_falls_back():
 
 
 # ── Solves the 80-workers-from-5 retry storm ─────────────────────────────
+
 
 def test_mode_off_eliminates_iteration_storm():
     """With mode='off', anti_drift never fires → judge accepts → no retry loop.
@@ -128,7 +135,7 @@ def test_mode_embedding_solves_natural_language_vs_code_mismatch():
     """The exact failure mode that produced 80 workers in v5: verbose
     NL objective vs concrete Python output → keyword overlap is near-zero
     → judge fails → retry storm. Embedding mode + low threshold avoids this."""
-    s = _state(mode="embedding", threshold=0.05)   # generous threshold
+    s = _state(mode="embedding", threshold=0.05)  # generous threshold
     embedder = HashEmbedder()
     candidate = "def authenticate(token): return True"
     # The bag-of-words won't perfectly correlate, but a low threshold passes.
@@ -139,7 +146,9 @@ def test_mode_embedding_solves_natural_language_vs_code_mismatch():
 
 # ── SwarmConfig validation ───────────────────────────────────────────────
 
+
 def test_invalid_anti_drift_mode_rejected():
     from pydantic import ValidationError
+
     with pytest.raises(ValidationError):
         SwarmConfig(anti_drift_mode="magic")

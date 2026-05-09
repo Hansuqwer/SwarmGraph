@@ -9,6 +9,7 @@ F-20C: extracted into shared package
 F-20D: secrets.token_hex(8) for checkpoint IDs (was 4)
 F-20-SEC2: dict KEYS also redacted (inherited from swarm_shared.redaction.redact_obj)
 """
+
 from __future__ import annotations
 
 import json
@@ -26,6 +27,7 @@ from ..models.state import SwarmCheckpoint, SwarmState
 
 # ── In-process store ──────────────────────────────────────────────────────
 
+
 class InProcessCheckpointStore:
     """In-process checkpointing for development and testing."""
 
@@ -40,9 +42,7 @@ class InProcessCheckpointStore:
         return checkpoint
 
     def load_latest(self, swarm_id: str) -> SwarmState | None:
-        candidates = [
-            cp for cp in self._store.values() if cp.swarm_id == swarm_id
-        ]
+        candidates = [cp for cp in self._store.values() if cp.swarm_id == swarm_id]
         if not candidates:
             return None
         # F-20B: prefer iteration order over wall-clock
@@ -96,6 +96,7 @@ class FileCheckpointStore:
 
 
 # ── LangGraph-compatible RedactingCheckpointer ────────────────────────────
+
 
 class SwarmRedactingCheckpointer(BaseRedactingCheckpointer):
     """Wraps any LangGraph saver. F-20A: inherits production-grade regex set.

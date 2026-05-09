@@ -1,10 +1,12 @@
 """Anthropic adapter stub — requires ANTHROPIC_API_KEY env var."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class AnthropicAdapter(ProviderAdapter):
-    provider_id   = "anthropic"
+    provider_id = "anthropic"
     default_model = "claude-haiku-3-5"
 
     def is_configured(self) -> bool:
@@ -15,6 +17,7 @@ class AnthropicAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import anthropic
+
             client = anthropic.Anthropic(api_key=self._get_env("ANTHROPIC_API_KEY"))
             resp = client.messages.create(
                 model=model or self.default_model,

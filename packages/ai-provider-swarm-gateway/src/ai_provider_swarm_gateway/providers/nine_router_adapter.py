@@ -11,6 +11,7 @@ v6 history preserved:
   - 5 env-var aliases for the API key
   - data: [DONE] sentinel handling
 """
+
 from __future__ import annotations
 
 import json
@@ -26,11 +27,14 @@ from typing import Any, Iterable, Iterator, Mapping, Optional
 
 try:
     from .base import ProviderAdapter as _BaseProviderAdapter  # type: ignore
+
     _HAS_UPSTREAM_BASE = True
 except Exception:  # pragma: no cover
     _HAS_UPSTREAM_BASE = False
+
     class _BaseProviderAdapter:  # type: ignore[no-redef]
         provider_id: str = ""
+
         def is_configured(self) -> bool:
             return False
 
@@ -39,6 +43,7 @@ except Exception:  # pragma: no cover
 
 try:
     from ..models.state import GatewayResponse as _GatewayResponse  # type: ignore
+
     _HAS_GATEWAY_RESPONSE = True
 except Exception:  # pragma: no cover
     _HAS_GATEWAY_RESPONSE = False
@@ -157,8 +162,11 @@ def _validate_http_url(url: str) -> str:
 
 # ── HTTP transport ───────────────────────────────────────────────────────
 
+
 class _HttpClient:
-    def post_json(self, url, payload, *, api_key, timeout=DEFAULT_TIMEOUT_SECONDS, extra_headers=None):
+    def post_json(
+        self, url, payload, *, api_key, timeout=DEFAULT_TIMEOUT_SECONDS, extra_headers=None
+    ):
         body = json.dumps(payload).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
@@ -167,7 +175,9 @@ class _HttpClient:
         }
         if extra_headers:
             headers.update(dict(extra_headers))
-        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
+        req = urllib.request.Request(
+            url=_validate_http_url(url), data=body, headers=headers, method="POST"
+        )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8", errors="replace")
@@ -186,7 +196,9 @@ class _HttpClient:
             "Authorization": f"Bearer {api_key}",
             "Accept": "text/event-stream",
         }
-        req = urllib.request.Request(url=_validate_http_url(url), data=body, headers=headers, method="POST")
+        req = urllib.request.Request(
+            url=_validate_http_url(url), data=body, headers=headers, method="POST"
+        )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
                 if resp.status >= 400:
@@ -213,7 +225,7 @@ class _HttpClient:
 def _parse_sse_data_line(line: str) -> dict[str, Any] | None:
     if not line.startswith("data:"):
         return None
-    payload = line[len("data:"):].strip()
+    payload = line[len("data:") :].strip()
     if not payload or payload == "[DONE]":
         return None
     try:
@@ -240,6 +252,7 @@ def _stream_event_to_chunk(event: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── F-29-RET1: GatewayResponse construction ──────────────────────────────
+
 
 def _to_gateway_response(
     content: str,
@@ -304,6 +317,7 @@ def _to_gateway_response(
 
 # ── Adapter ───────────────────────────────────────────────────────────────
 
+
 class NineRouterAdapter(_BaseProviderAdapter):
     """OpenAI-compatible adapter for the local 9router."""
 
@@ -319,12 +333,10 @@ class NineRouterAdapter(_BaseProviderAdapter):
         timeout_seconds: float | None = None,
         http_client: _HttpClient | None = None,
     ) -> None:
-        self.base_url = (base_url or os.environ.get(
-            "AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", DEFAULT_BASE_URL
-        )).rstrip("/")
-        self.model = model or os.environ.get(
-            "AI_PROVIDER_GATEWAY_9ROUTER_MODEL", DEFAULT_MODEL
-        )
+        self.base_url = (
+            base_url or os.environ.get("AI_PROVIDER_GATEWAY_9ROUTER_BASE_URL", DEFAULT_BASE_URL)
+        ).rstrip("/")
+        self.model = model or os.environ.get("AI_PROVIDER_GATEWAY_9ROUTER_MODEL", DEFAULT_MODEL)
         self._explicit_api_key = api_key
         self.timeout_seconds = float(
             timeout_seconds
@@ -347,16 +359,18 @@ class NineRouterAdapter(_BaseProviderAdapter):
 
     def chat(
         self,
-        messages=None, *,
-        prompt=None, model=None,
-        max_tokens=512, temperature=0.0,
+        messages=None,
+        *,
+        prompt=None,
+        model=None,
+        max_tokens=512,
+        temperature=0.0,
         extra_payload=None,
     ) -> NineRouterResponse:
         api_key = _resolve_api_key(self._explicit_api_key)
         if not api_key:
             raise PermissionError(
-                "9router adapter has no API key. Set one of: "
-                + ", ".join(_API_KEY_ENV_ALIASES)
+                "9router adapter has no API key. Set one of: " + ", ".join(_API_KEY_ENV_ALIASES)
             )
 
         norm_messages = _normalise_messages(messages, fallback_prompt=prompt)
@@ -371,7 +385,10 @@ class NineRouterAdapter(_BaseProviderAdapter):
 
         t0 = time.monotonic()
         status, raw_body, _headers = self._http.post_json(
-            self.endpoint, payload, api_key=api_key, timeout=self.timeout_seconds,
+            self.endpoint,
+            payload,
+            api_key=api_key,
+            timeout=self.timeout_seconds,
         )
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
@@ -397,16 +414,18 @@ class NineRouterAdapter(_BaseProviderAdapter):
 
     def chat_stream(
         self,
-        messages=None, *,
-        prompt=None, model=None,
-        max_tokens=512, temperature=0.0,
+        messages=None,
+        *,
+        prompt=None,
+        model=None,
+        max_tokens=512,
+        temperature=0.0,
         extra_payload=None,
     ) -> Iterator[dict[str, Any]]:
         api_key = _resolve_api_key(self._explicit_api_key)
         if not api_key:
             raise PermissionError(
-                "9router adapter has no API key. Set one of: "
-                + ", ".join(_API_KEY_ENV_ALIASES)
+                "9router adapter has no API key. Set one of: " + ", ".join(_API_KEY_ENV_ALIASES)
             )
 
         norm_messages = _normalise_messages(messages, fallback_prompt=prompt)
@@ -421,7 +440,9 @@ class NineRouterAdapter(_BaseProviderAdapter):
             payload.update(dict(extra_payload))
 
         for line in self._http.post_json_stream(
-            self.endpoint, payload, api_key=api_key,
+            self.endpoint,
+            payload,
+            api_key=api_key,
             timeout=DEFAULT_STREAM_TIMEOUT_SECONDS,
         ):
             event = _parse_sse_data_line(line)
@@ -433,9 +454,12 @@ class NineRouterAdapter(_BaseProviderAdapter):
 
     def call(
         self,
-        messages=None, *,
-        prompt=None, model=None,
-        max_tokens=512, temperature=0.0,
+        messages=None,
+        *,
+        prompt=None,
+        model=None,
+        max_tokens=512,
+        temperature=0.0,
         extra_payload=None,
     ) -> Any:
         """Like `chat()` but returns a `GatewayResponse` (canonical) so the
@@ -448,8 +472,11 @@ class NineRouterAdapter(_BaseProviderAdapter):
         """
         try:
             r = self.chat(
-                messages=messages, prompt=prompt, model=model,
-                max_tokens=max_tokens, temperature=temperature,
+                messages=messages,
+                prompt=prompt,
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
                 extra_payload=extra_payload,
             )
             return _to_gateway_response(
@@ -462,16 +489,20 @@ class NineRouterAdapter(_BaseProviderAdapter):
             )
         except PermissionError as e:
             return _to_gateway_response(
-                content="", model_used=model or self.model,
+                content="",
+                model_used=model or self.model,
                 finish_reason="auth_failed",
-                input_tokens=0, output_tokens=0,
+                input_tokens=0,
+                output_tokens=0,
                 error=f"PermissionError: {e}",
             )
         except (RuntimeError, ConnectionError) as e:
             return _to_gateway_response(
-                content="", model_used=model or self.model,
+                content="",
+                model_used=model or self.model,
                 finish_reason="error",
-                input_tokens=0, output_tokens=0,
+                input_tokens=0,
+                output_tokens=0,
                 error=str(e),
             )
 
@@ -491,9 +522,15 @@ class NineRouterAdapter(_BaseProviderAdapter):
 
 
 __all__ = [
-    "PROVIDER_ID", "DEFAULT_BASE_URL", "DEFAULT_MODEL",
-    "NineRouterAdapter", "NineRouterResponse",
-    "_parse_quirky_body", "_extract_content", "_resolve_api_key",
-    "_parse_sse_data_line", "_stream_event_to_chunk",
+    "PROVIDER_ID",
+    "DEFAULT_BASE_URL",
+    "DEFAULT_MODEL",
+    "NineRouterAdapter",
+    "NineRouterResponse",
+    "_parse_quirky_body",
+    "_extract_content",
+    "_resolve_api_key",
+    "_parse_sse_data_line",
+    "_stream_event_to_chunk",
     "_to_gateway_response",
 ]

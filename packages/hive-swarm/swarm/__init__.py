@@ -3,19 +3,20 @@
 Patched 2026-05-07 by hive orchestrator (objective_hash a3f9c2e1b8d74f06+patch).
 See PATCH_REPORT_2026-05-07.md for the full change list.
 """
+
 from .graphs.factory import build_swarm_graph
 from .models.agent import (
     AgentSpec,
     AgentState,
     AgentVote,
-    ApprovalDecision,   # F-19B (new)
+    ApprovalDecision,  # F-19B (new)
     WorkerResult,
 )
 from .models.config import SwarmConfig
 from .models.consensus import (
     ConsensusResult,
     bft_consensus,
-    canonicalize_action,   # F-17A helper
+    canonicalize_action,  # F-17A helper
     gossip_consensus,
     majority_consensus,
     raft_consensus,

@@ -1,4 +1,5 @@
 """Consensus tests — exercises every protocol + the new canonicalization."""
+
 import pytest
 
 from swarm.models.agent import AgentVote
@@ -86,10 +87,7 @@ def test_bft_raises_on_invalid_quorum_fraction():
 
 def test_bft_textbook_quorum_n4():
     """n=4: floor(2*4/3)+1 = 3 → tolerates 1 fault."""
-    votes = (
-        [_vote(f"a{i}", "coder", "do x") for i in range(3)]
-        + [_vote("a4", "coder", "do y")]
-    )
+    votes = [_vote(f"a{i}", "coder", "do x") for i in range(3)] + [_vote("a4", "coder", "do y")]
     r = bft_consensus(votes)
     assert not r.failed
     assert r.action == "do x"
@@ -104,7 +102,7 @@ def test_bft_quorum_miss():
         _vote("a4", "coder", "do x"),
     ]
     r = bft_consensus(votes)
-    assert r.failed   # 2/4 < threshold(3)
+    assert r.failed  # 2/4 < threshold(3)
 
 
 def test_bft_dedupes_double_voters():

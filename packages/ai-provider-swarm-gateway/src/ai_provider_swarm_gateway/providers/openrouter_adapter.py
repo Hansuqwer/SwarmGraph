@@ -1,12 +1,14 @@
 """OpenRouter adapter — requires OPENROUTER_API_KEY. Routes to free models by default."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class OpenRouterAdapter(ProviderAdapter):
-    provider_id   = "openrouter"
+    provider_id = "openrouter"
     default_model = "deepseek/deepseek-r1:free"
-    _base_url     = "https://openrouter.ai/api/v1"
+    _base_url = "https://openrouter.ai/api/v1"
 
     def is_configured(self) -> bool:
         return bool(self._get_env("OPENROUTER_API_KEY"))
@@ -16,6 +18,7 @@ class OpenRouterAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import openai
+
             client = openai.OpenAI(
                 api_key=self._get_env("OPENROUTER_API_KEY"),
                 base_url=self._base_url,

@@ -1,6 +1,7 @@
 """
 Registry loader — reads providers.yaml and validates all entries.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,15 +27,15 @@ def load_provider_registry(path: Path | None = None) -> list[ProviderInfo]:
         try:
             # Flatten quota sub-dict
             quota_raw = {
-                "free_daily_usage":        entry.pop("free_daily_usage", None),
-                "free_monthly_usage":      entry.pop("free_monthly_usage", None),
-                "trial_credits":           entry.pop("trial_credits", None),
+                "free_daily_usage": entry.pop("free_daily_usage", None),
+                "free_monthly_usage": entry.pop("free_monthly_usage", None),
+                "trial_credits": entry.pop("trial_credits", None),
                 "requires_payment_method": entry.pop("requires_payment_method", None),
-                "api_access_available":    entry.pop("api_access_available", None),
-                "web_only_free_access":    entry.pop("web_only_free_access", None),
-                "rate_limits":             entry.pop("rate_limits", None),
-                "quota_reset_policy":      entry.pop("quota_reset_policy", None),
-                "confidence":              entry.pop("confidence", "unknown"),
+                "api_access_available": entry.pop("api_access_available", None),
+                "web_only_free_access": entry.pop("web_only_free_access", None),
+                "rate_limits": entry.pop("rate_limits", None),
+                "quota_reset_policy": entry.pop("quota_reset_policy", None),
+                "confidence": entry.pop("confidence", "unknown"),
             }
             entry["quota"] = quota_raw
             providers.append(ProviderInfo.model_validate(entry))
@@ -42,6 +43,7 @@ def load_provider_registry(path: Path | None = None) -> list[ProviderInfo]:
             errors.append(f"Provider '{entry.get('provider_id', 'UNKNOWN')}': {e}")
     if errors:
         import warnings
+
         for err in errors:
             warnings.warn(f"Registry load error: {err}", stacklevel=2)
     return providers

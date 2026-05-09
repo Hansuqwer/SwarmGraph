@@ -1,4 +1,5 @@
 """End-to-end test using the mock graph (works without LangGraph installed)."""
+
 from swarm.graphs.factory import _MockCompiledGraph
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState

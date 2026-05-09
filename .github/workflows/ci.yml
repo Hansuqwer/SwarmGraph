@@ -38,11 +38,9 @@ jobs:
 
       - name: Format check (ruff)
         run: uv run ruff format --check packages/
-        continue-on-error: true  # advisory until formatting baseline is fixed
 
       - name: Type check (pyright)
         run: uv run pyright
-        continue-on-error: true  # informational until types are fully annotated
 
       - name: Test
         run: |

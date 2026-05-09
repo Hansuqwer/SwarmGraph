@@ -4,6 +4,7 @@ No live HTTP. We monkeypatch `_get_adapter` so the gateway returns an
 adapter whose `_HttpClient` is a fake. This covers the CLI → graph →
 adapter chain end-to-end.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ def _gateway_fully_vendored() -> bool:
         from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
         from ai_provider_swarm_gateway.graph.builder import build_gateway_graph  # noqa: F401
         from ai_provider_swarm_gateway.graph import nodes as _nodes  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -35,7 +37,7 @@ PONG_BODY = (
     '{"id": "x", "model": "stepfun/step-3.5-flash:free", '
     '"choices": [{"message": {"content": "pong"}, "finish_reason": "stop"}], '
     '"usage": {"prompt_tokens": 8, "completion_tokens": 1, "total_tokens": 9}}'
-    '\n\ndata: [DONE]\n'
+    "\n\ndata: [DONE]\n"
 )
 
 
@@ -78,9 +80,16 @@ def test_route_preferred_9router_pong(fake_9router_adapter, monkeypatch):
 
     result = runner.invoke(
         app,
-        ["route", "--prompt", "Say only pong.",
-         "--preferred", "9router",
-         "--capability", "chat", "--json"],
+        [
+            "route",
+            "--prompt",
+            "Say only pong.",
+            "--preferred",
+            "9router",
+            "--capability",
+            "chat",
+            "--json",
+        ],
     )
 
     # Allowable exit codes: 0 (success) or 4 (graph completed but no provider
@@ -89,7 +98,7 @@ def test_route_preferred_9router_pong(fake_9router_adapter, monkeypatch):
     assert result.exit_code in (0, 4), f"unexpected exit: {result.exit_code}\n{result.stdout}"
 
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["prompt"] == "Say only pong."
 
@@ -105,8 +114,7 @@ def test_route_dry_run_does_not_call_adapter(fake_9router_adapter):
     """--dry-run should stop before provider_call_node fires the HTTP."""
     result = runner.invoke(
         app,
-        ["route", "--prompt", "x", "--preferred", "9router",
-         "--dry-run", "--json"],
+        ["route", "--prompt", "x", "--preferred", "9router", "--dry-run", "--json"],
     )
     assert result.exit_code in (0, 4)
     # Most upstream graph implementations short-circuit at consensus or
@@ -118,8 +126,7 @@ def test_route_dry_run_does_not_call_adapter(fake_9router_adapter):
 def test_route_show_audit_includes_audit_lines(fake_9router_adapter):
     result = runner.invoke(
         app,
-        ["route", "--prompt", "ping", "--preferred", "9router",
-         "--json", "--show-audit"],
+        ["route", "--prompt", "ping", "--preferred", "9router", "--json", "--show-audit"],
     )
     assert result.exit_code in (0, 4)
     # audit_log object emitted as second JSON blob

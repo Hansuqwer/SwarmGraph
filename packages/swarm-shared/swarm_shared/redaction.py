@@ -16,6 +16,7 @@ Patterns covered (May 2026 baseline):
 
 Both KEYS and VALUES of dicts are redacted (closes 20-SEC2).
 """
+
 from __future__ import annotations
 
 import math
@@ -30,7 +31,9 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     # AWS access key
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     # AWS secret access key (40 base64-ish chars after typical prefix)
-    re.compile(r"(?<![A-Za-z0-9])(?:aws_secret_access_key\s*[:=]\s*)?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9])"),
+    re.compile(
+        r"(?<![A-Za-z0-9])(?:aws_secret_access_key\s*[:=]\s*)?[A-Za-z0-9/+=]{40}(?![A-Za-z0-9])"
+    ),
     # Google API key
     re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b"),
     # GitHub PAT (classic + fine-grained)
@@ -41,7 +44,10 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     # Bearer tokens
     re.compile(r"\bBearer\s+[A-Za-z0-9_\-\.]{10,}\b", re.IGNORECASE),
     # Database DSNs with embedded user:pass
-    re.compile(r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^:\s]+:[^@\s]+@[^/\s]+(?:/[\w\-]*)?", re.IGNORECASE),
+    re.compile(
+        r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^:\s]+:[^@\s]+@[^/\s]+(?:/[\w\-]*)?",
+        re.IGNORECASE,
+    ),
     # US Social Security numbers
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     # Payment-card-like numbers, allowing spaces or dashes between groups.
@@ -97,8 +103,9 @@ def redact_obj(obj: Any, *, detect_high_entropy: bool = False) -> Any:
     """Recursively redact dict/list/str. Both KEYS and VALUES are walked (F-20-SEC2)."""
     if isinstance(obj, dict):
         return {
-            (redact_text(k, detect_high_entropy=detect_high_entropy) if isinstance(k, str) else k):
-            redact_obj(v, detect_high_entropy=detect_high_entropy)
+            (
+                redact_text(k, detect_high_entropy=detect_high_entropy) if isinstance(k, str) else k
+            ): redact_obj(v, detect_high_entropy=detect_high_entropy)
             for k, v in obj.items()
         }
     if isinstance(obj, (list, tuple)):

@@ -4,6 +4,7 @@ F-08A: real no-self-dependency check (the previous _no_self_dep only deduplicate
 F-08B: task.fail("") rejected
 F-08-T1: refresh result_hash on every revalidation
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -16,6 +17,7 @@ from .types import AgentRole, TaskPriority, TaskStatus
 
 class SwarmTask(HardenedModel):
     """One atomic unit of work."""
+
     task_id: str = Field(..., min_length=1, max_length=64)
     description: str = Field(..., min_length=1, max_length=4096)
     priority: TaskPriority = "medium"
@@ -51,9 +53,7 @@ class SwarmTask(HardenedModel):
     def _no_self_dependency(self) -> "SwarmTask":
         # F-08A: real self-dep check (was missing)
         if self.task_id in self.depends_on:
-            raise ValueError(
-                f"task {self.task_id!r} cannot depend on itself"
-            )
+            raise ValueError(f"task {self.task_id!r} cannot depend on itself")
         return self
 
     @model_validator(mode="after")
@@ -107,6 +107,7 @@ class SwarmTask(HardenedModel):
 
 class QueenDirective(FrozenModel):
     """Immutable instruction from queen to one worker."""
+
     directive_id: str = Field(..., min_length=1)
     task: SwarmTask
     assigned_agent_id: str = Field(..., min_length=1)
@@ -119,8 +120,7 @@ class QueenDirective(FrozenModel):
     def _task_must_be_assigned(self) -> "QueenDirective":
         if self.task.status not in ("assigned", "running", "pending"):
             raise ValueError(
-                f"QueenDirective task must be in an active status, "
-                f"got {self.task.status!r}"
+                f"QueenDirective task must be in an active status, got {self.task.status!r}"
             )
         return self
 

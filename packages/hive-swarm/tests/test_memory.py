@@ -1,4 +1,5 @@
 """SwarmMemory tests."""
+
 import json
 import pytest
 from pathlib import Path
@@ -88,8 +89,7 @@ def test_index_is_private_attr():
 def test_memory_construction_caps():
     """F-12-T1: cap enforced on construction."""
     entries = [
-        SwarmMemoryEntry(key=f"k{i}", value=f"v{i}", score=1.0 - i*0.01)
-        for i in range(50)
+        SwarmMemoryEntry(key=f"k{i}", value=f"v{i}", score=1.0 - i * 0.01) for i in range(50)
     ]
     m = SwarmMemory(entries=entries, max_entries=10)
     assert m.size() == 10

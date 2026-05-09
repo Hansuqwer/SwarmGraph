@@ -2,6 +2,7 @@
 AGENTS 24, 25 — Swarm Routing Specialist, Consensus Specialist
 4 consensus strategies for provider selection. Policy guard applied to all.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -15,9 +16,9 @@ from ..policy.guardrails import validate_provider_policy
 @dataclass
 class ProviderVote:
     provider_id: str
-    score:       float   # 0.0–1.0
-    reason:      str
-    policy_ok:   bool = True
+    score: float  # 0.0–1.0
+    reason: str
+    policy_ok: bool = True
 
 
 def _apply_policy_guard(
@@ -60,6 +61,7 @@ def weighted_confidence_consensus(
     if not safe:
         return None
     from collections import defaultdict
+
     weighted: dict[str, float] = defaultdict(float)
     for v in safe:
         weighted[v.provider_id] += v.score
@@ -101,8 +103,9 @@ def cost_aware_consensus(
     if not safe:
         return None
 
-    free_votes = [v for v in safe if providers.get(v.provider_id) and
-                  providers[v.provider_id].is_api_free()]
+    free_votes = [
+        v for v in safe if providers.get(v.provider_id) and providers[v.provider_id].is_api_free()
+    ]
     if prefer_free and free_votes:
         return max(free_votes, key=lambda v: v.score)
     return weighted_confidence_consensus(safe, providers)

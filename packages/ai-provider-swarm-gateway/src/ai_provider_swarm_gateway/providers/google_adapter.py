@@ -1,10 +1,12 @@
 """Google Gemini adapter — requires GOOGLE_API_KEY env var."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class GoogleAdapter(ProviderAdapter):
-    provider_id   = "google_gemini"
+    provider_id = "google_gemini"
     default_model = "gemini-2.5-flash"
 
     def is_configured(self) -> bool:
@@ -15,6 +17,7 @@ class GoogleAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import google.generativeai as genai
+
             genai.configure(api_key=self._get_env("GOOGLE_API_KEY"))
             m = genai.GenerativeModel(model or self.default_model)
             resp = m.generate_content(prompt)

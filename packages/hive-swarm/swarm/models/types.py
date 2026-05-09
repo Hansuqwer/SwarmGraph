@@ -2,6 +2,7 @@
 
 F-13C: _QUEEN_NODE_NAMES centralised here (was duplicated in factory.py + router.py).
 """
+
 from __future__ import annotations
 from typing import Literal
 
@@ -23,9 +24,7 @@ AgentRole = Literal[
 AgentStatus = Literal["idle", "working", "blocked", "done", "failed"]
 
 # --- Task lifecycle ---
-TaskStatus = Literal[
-    "pending", "assigned", "running", "completed", "failed", "cancelled"
-]
+TaskStatus = Literal["pending", "assigned", "running", "completed", "failed", "cancelled"]
 TaskPriority = Literal["low", "medium", "high", "critical"]
 
 # --- Swarm topology ---
@@ -61,9 +60,9 @@ SwarmFailureCause = Literal[
     "all_workers_failed",
     "max_iterations_exceeded",
     "approval_denied",
-    "approval_replay",          # F-19A: new (single-use guard violation)
+    "approval_replay",  # F-19A: new (single-use guard violation)
     "model_error",
-    "split_brain",              # F-21A: new (multiple queens)
+    "split_brain",  # F-21A: new (multiple queens)
     "unknown",
 ]
 
@@ -73,11 +72,11 @@ ComplexityTier = Literal["tier1_fast", "tier2_medium", "tier3_swarm"]
 # --- History entry kinds ---
 HistoryKind = Literal[
     "swarm_init",
-    "route",                    # F-14A / F-14-OBS1: distinct from swarm_init
+    "route",  # F-14A / F-14-OBS1: distinct from swarm_init
     "task_assigned",
     "worker_result",
     "consensus",
-    "consensus_failed",         # F-17C
+    "consensus_failed",  # F-17C
     "judge",
     "memory_store",
     "memory_retrieve",
@@ -86,7 +85,7 @@ HistoryKind = Literal[
     "approval_replay_blocked",  # F-19A
     "sona_distill",
     "drift_detected",
-    "split_brain_detected",     # F-21A
+    "split_brain_detected",  # F-21A
     "error",
 ]
 

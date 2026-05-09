@@ -16,6 +16,7 @@ Design notes:
     after writing to state.errors. The in-memory chain is the source of
     truth; the JSONL file is durability for ops/forensics.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,9 +39,7 @@ class AuditMisconfigured(RuntimeError):
 def _resolve_secret(state) -> bytes:
     env_var = state.config.audit_secret_env
     if not env_var:
-        raise AuditMisconfigured(
-            "audit_signing_enabled=True but config.audit_secret_env is empty"
-        )
+        raise AuditMisconfigured("audit_signing_enabled=True but config.audit_secret_env is empty")
     secret = os.environ.get(env_var)
     if not secret:
         raise AuditMisconfigured(
@@ -103,6 +102,7 @@ def sign_and_record(state, kind: AuditKind, payload: dict[str, Any]) -> dict | N
     )
     if log_path_str:
         from pathlib import Path
+
         try:
             append_jsonl(Path(log_path_str), record)
         except Exception as e:

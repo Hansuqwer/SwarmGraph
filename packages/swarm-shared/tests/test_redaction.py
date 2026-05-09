@@ -1,4 +1,5 @@
 """Tests for swarm_shared.redaction (F-20A)."""
+
 from swarm_shared.redaction import (
     REDACTED,
     Redactor,

@@ -4,6 +4,7 @@ This module never runs automatically. Callers must explicitly choose a provider
 and browser profile scope, and should store returned tokens only in the
 encrypted vault.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

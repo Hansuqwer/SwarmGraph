@@ -4,6 +4,7 @@ No network. We monkeypatch swarm.llm.dispatch._default_adapter_factory so
 the worker_node, when it builds a GatewayDispatcher, gets a deterministic
 fake adapter.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ from swarm.nodes.worker import _estimate_confidence, collect_results_node, worke
 
 # ── Fake adapter wired into the gateway path ─────────────────────────────
 
+
 class _FakeAdapter:
     def __init__(self, return_value: str = "GATEWAY:hello", configured: bool = True):
         self.return_value = return_value
@@ -32,9 +34,13 @@ class _FakeAdapter:
         return self._configured
 
     def chat(self, *, messages, max_tokens, temperature):
-        self.calls.append({
-            "messages": messages, "max_tokens": max_tokens, "temperature": temperature,
-        })
+        self.calls.append(
+            {
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+        )
         return self.return_value
 
 
@@ -42,13 +48,15 @@ class _FakeAdapter:
 def fake_gateway_adapter(monkeypatch):
     fake = _FakeAdapter()
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda provider_id: fake,
     )
     return fake
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
+
 
 def _make_agent_state(
     *,
@@ -66,8 +74,11 @@ def _make_agent_state(
         "llm_settings": settings,
     }
     swarm_task = SwarmTask(
-        task_id="t1", description=task, priority="high",
-        assigned_to=f"{role}-1", required_role=role,
+        task_id="t1",
+        description=task,
+        priority="high",
+        assigned_to=f"{role}-1",
+        required_role=role,
     )
     swarm_task.assign(f"{role}-1")
     directive = QueenDirective(
@@ -88,6 +99,7 @@ def _make_agent_state(
 
 
 # ── Default behaviour: stub mode (back-compat) ───────────────────────────
+
 
 def test_worker_node_default_stub_unchanged():
     """SwarmConfig() with no args ⇒ same string format as pre-v4."""
@@ -113,6 +125,7 @@ def test_worker_node_returns_reducer_friendly_shape():
 
 
 # ── Gateway mode end-to-end ──────────────────────────────────────────────
+
 
 def test_worker_node_gateway_mode_uses_adapter(fake_gateway_adapter):
     cfg = SwarmConfig(llm_backend="gateway", llm_default_provider="9router")
@@ -185,7 +198,8 @@ def test_worker_node_role_override_routes_through_alt_provider(monkeypatch):
 def test_worker_node_unconfigured_adapter_produces_failed_result(monkeypatch):
     """Adapter says is_configured=False ⇒ worker emits success=False, not crash."""
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: _FakeAdapter(configured=False),
     )
     cfg = SwarmConfig(llm_backend="gateway")
@@ -199,8 +213,11 @@ def test_worker_node_unconfigured_adapter_produces_failed_result(monkeypatch):
 
 def test_worker_node_adapter_raising_runtime_error_becomes_failed_result(monkeypatch):
     class Boom:
-        def is_configured(self): return True
-        def chat(self, **kw): raise RuntimeError("upstream 500")
+        def is_configured(self):
+            return True
+
+        def chat(self, **kw):
+            raise RuntimeError("upstream 500")
 
     monkeypatch.setattr(dispatch_mod, "_default_adapter_factory", lambda pid: Boom())
     cfg = SwarmConfig(llm_backend="gateway")
@@ -222,6 +239,7 @@ def test_worker_node_unknown_backend_becomes_failed_result(monkeypatch):
 
 
 # ── queen forwards llm_settings ─────────────────────────────────────────
+
 
 def test_queen_forwards_llm_settings_into_directive():
     cfg = SwarmConfig(
@@ -289,6 +307,7 @@ def test_queen_default_config_forwards_stub_settings():
 
 # ── confidence helper untouched (regression) ─────────────────────────────
 
+
 def test_estimate_confidence_empty_output_zero():
     assert _estimate_confidence("", "task") == 0.0
 
@@ -300,16 +319,21 @@ def test_estimate_confidence_in_unit_range():
 
 # ── fan-in unchanged (regression) ────────────────────────────────────────
 
+
 def test_collect_results_node_marks_tasks_complete():
     cfg = SwarmConfig()
     state = SwarmState(swarm_id="s1", objective="x", config=cfg)
-    state.tasks.append(SwarmTask(
-        task_id="t1", description="x", status="assigned", assigned_to="a1"
-    ))
+    state.tasks.append(
+        SwarmTask(task_id="t1", description="x", status="assigned", assigned_to="a1")
+    )
     state.worker_results = [
         WorkerResult(
-            agent_id="a1", agent_role="coder", task_id="t1",
-            success=True, output="ok", confidence=0.9,
+            agent_id="a1",
+            agent_role="coder",
+            task_id="t1",
+            success=True,
+            output="ok",
+            confidence=0.9,
         )
     ]
     out = collect_results_node(state.to_json_dict())

@@ -14,6 +14,7 @@ v7 NEW:
   - tenant_storage_path(tenant_id) classmethod for explicit construction
   - QuotaTracker.for_tenant(tenant_id) factory
 """
+
 from __future__ import annotations
 
 import json
@@ -41,9 +42,7 @@ _TENANT_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
 
 def _validate_tenant_id(tenant_id: str) -> str:
     if not _TENANT_ID_RE.match(tenant_id):
-        raise ValueError(
-            f"tenant_id must match [a-zA-Z0-9_-]{{1,64}}; got {tenant_id!r}"
-        )
+        raise ValueError(f"tenant_id must match [a-zA-Z0-9_-]{{1,64}}; got {tenant_id!r}")
     return tenant_id
 
 
@@ -200,10 +199,7 @@ class QuotaTracker:
             window=window,  # type: ignore[arg-type]
             used_requests=raw.get("used_requests", 0),
             used_tokens=raw.get("used_tokens", 0),
-            reset_at=(
-                datetime.fromisoformat(raw["reset_at"])
-                if raw.get("reset_at") else None
-            ),
+            reset_at=(datetime.fromisoformat(raw["reset_at"]) if raw.get("reset_at") else None),
         )
 
     def increment(

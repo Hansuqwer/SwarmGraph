@@ -1,4 +1,5 @@
 """Tests for swarm_shared.hashing."""
+
 import pytest
 from swarm_shared.hashing import stable_hash, full_sha256
 

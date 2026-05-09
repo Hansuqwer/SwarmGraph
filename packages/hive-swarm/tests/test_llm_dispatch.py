@@ -1,4 +1,5 @@
 """Unit tests for swarm.llm.dispatch — no network."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,6 +20,7 @@ from swarm.llm.prompts import get_system_prompt
 
 
 # ── settings resolution ───────────────────────────────────────────────────
+
 
 def test_default_settings_are_stub():
     s = resolve_llm_settings(task_context=None, role="coder")
@@ -96,6 +98,7 @@ def test_default_settings_immutable_to_callers():
 
 # ── prompt building ──────────────────────────────────────────────────────
 
+
 def test_build_user_prompt_minimal():
     out = _build_user_prompt("write add()", task_context=None)
     assert "write add()" in out
@@ -118,9 +121,7 @@ def test_build_user_prompt_includes_retrieved_patterns():
 
 def test_build_user_prompt_skips_retrieval_when_disabled():
     ctx = {"shared_context": {"retrieved_patterns": [{"value": "tip"}]}}
-    out = _build_user_prompt(
-        "task", task_context=ctx, include_retrieved_patterns=False
-    )
+    out = _build_user_prompt("task", task_context=ctx, include_retrieved_patterns=False)
     assert "tip" not in out
 
 
@@ -148,13 +149,14 @@ def test_build_user_prompt_skips_objective_when_already_in_task():
 def test_build_user_prompt_caps_pattern_count_and_length():
     ctx = {
         "shared_context": {
-            "retrieved_patterns": [
-                {"value": "x" * 1000, "score": 0.9} for _ in range(20)
-            ]
+            "retrieved_patterns": [{"value": "x" * 1000, "score": 0.9} for _ in range(20)]
         }
     }
     out = _build_user_prompt(
-        "task", task_context=ctx, max_patterns=3, max_pattern_chars=50,
+        "task",
+        task_context=ctx,
+        max_patterns=3,
+        max_pattern_chars=50,
     )
     # Only 3 patterns × 50 chars max each
     assert out.count("[score=0.90]") == 3
@@ -163,6 +165,7 @@ def test_build_user_prompt_caps_pattern_count_and_length():
 
 
 # ── response extraction ──────────────────────────────────────────────────
+
 
 def test_extract_text_from_string():
     assert _extract_text("hello") == "hello"
@@ -174,7 +177,9 @@ def test_extract_text_from_string_empty_raises():
 
 
 def test_extract_text_from_object_with_content_attr():
-    class R: content = "from-attr"
+    class R:
+        content = "from-attr"
+
     assert _extract_text(R()) == "from-attr"
 
 
@@ -199,13 +204,17 @@ def test_extract_text_legacy_text_field():
 def test_extract_text_message_object_with_content():
     class Msg:
         content = "object-with-content"
+
     class R:
         message = Msg()
+
     assert _extract_text(R()) == "object-with-content"
 
 
 def test_extract_text_unknown_object_raises():
-    class Opaque: pass
+    class Opaque:
+        pass
+
     with pytest.raises(WorkerLLMError):
         _extract_text(Opaque())
 
@@ -217,10 +226,14 @@ def test_extract_text_none_raises():
 
 # ── StubDispatcher (back-compat) ─────────────────────────────────────────
 
+
 def test_stub_dispatch_matches_pre_v4_strings():
     d = StubDispatcher()
     assert d.dispatch("coder", "implement foo") == "[CODER] Implementation for: implement foo"
-    assert d.dispatch("tester", "write tests for bar") == "[TESTER] Test suite for: write tests for bar"
+    assert (
+        d.dispatch("tester", "write tests for bar")
+        == "[TESTER] Test suite for: write tests for bar"
+    )
     assert d.dispatch("documenter", "doc the thing") == "[AGENT] Output for: doc the thing"
 
 
@@ -231,6 +244,7 @@ def test_stub_dispatch_unknown_role_uses_default_template():
 
 
 # ── GatewayDispatcher (mocked adapter) ───────────────────────────────────
+
 
 class _FakeAdapter:
     """Mimics the upstream ProviderAdapter ABC enough to satisfy the
@@ -245,12 +259,14 @@ class _FakeAdapter:
         return self._configured
 
     def chat(self, *, messages, max_tokens, temperature):
-        self.calls.append({
-            "method": "chat",
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        })
+        self.calls.append(
+            {
+                "method": "chat",
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+        )
         return self.return_value
 
 
@@ -274,7 +290,8 @@ def test_gateway_dispatch_passes_max_tokens_and_temperature():
     fake = _FakeAdapter()
     d = GatewayDispatcher(
         default_provider="9router",
-        max_tokens=256, temperature=0.5,
+        max_tokens=256,
+        temperature=0.5,
         adapter_factory=lambda pid: fake,
     )
     d.dispatch("coder", "x")
@@ -327,18 +344,24 @@ def test_gateway_dispatch_unconfigured_adapter_raises():
 
 def test_gateway_dispatch_method_fallback_chat_completion():
     class CC:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat_completion(self, *, messages, max_tokens, temperature):
             return "via-chat-completion"
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: CC())
     assert d.dispatch("coder", "task") == "via-chat-completion"
 
 
 def test_gateway_dispatch_method_fallback_complete_with_prompt_kwarg():
     class C:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def complete(self, *, prompt, max_tokens, temperature):
             return f"complete-saw-{prompt[-10:]}"
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: C())
     out = d.dispatch("coder", "implement add()")
     assert out.startswith("complete-saw-")
@@ -346,7 +369,9 @@ def test_gateway_dispatch_method_fallback_complete_with_prompt_kwarg():
 
 def test_gateway_dispatch_no_callable_method_raises():
     class Opaque:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=lambda pid: Opaque())
     with pytest.raises(WorkerLLMError, match="no callable LLM method"):
         d.dispatch("coder", "x")
@@ -355,6 +380,7 @@ def test_gateway_dispatch_no_callable_method_raises():
 def test_gateway_dispatch_adapter_factory_failure_raises_typed():
     def boom(pid):
         raise RuntimeError("simulated load failure")
+
     d = GatewayDispatcher(default_provider="x", adapter_factory=boom)
     with pytest.raises(WorkerLLMError, match="could not load adapter"):
         d.dispatch("coder", "x")
@@ -372,10 +398,11 @@ def test_gateway_dispatch_caches_adapter_per_provider():
     d.dispatch("coder", "x")
     d.dispatch("tester", "y")
     d.dispatch("reviewer", "z")
-    assert len(instances) == 1   # cached after first lookup
+    assert len(instances) == 1  # cached after first lookup
 
 
 # ── build_dispatcher factory ─────────────────────────────────────────────
+
 
 def test_build_dispatcher_stub_default():
     d = build_dispatcher({"backend": "stub", "effective_provider": "ignored"})
@@ -388,12 +415,14 @@ def test_build_dispatcher_stub_aliases():
 
 
 def test_build_dispatcher_gateway():
-    d = build_dispatcher({
-        "backend": "gateway",
-        "effective_provider": "9router",
-        "max_tokens": 100,
-        "temperature": 0.0,
-    })
+    d = build_dispatcher(
+        {
+            "backend": "gateway",
+            "effective_provider": "9router",
+            "max_tokens": 100,
+            "temperature": 0.0,
+        }
+    )
     assert isinstance(d, GatewayDispatcher)
     assert d.default_provider == "9router"
     assert d.max_tokens == 100
@@ -405,6 +434,7 @@ def test_build_dispatcher_unknown_backend_raises():
 
 
 # ── prompts ─────────────────────────────────────────────────────────────
+
 
 def test_get_system_prompt_known_role():
     assert "Coder" in get_system_prompt("coder")

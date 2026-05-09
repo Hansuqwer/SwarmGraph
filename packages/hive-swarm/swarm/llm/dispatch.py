@@ -11,6 +11,7 @@ History (v4–v6 preserved):
   - SONA-retrieved patterns reach user prompt
   - cost lookup via swarm_shared.pricing
 """
+
 from __future__ import annotations
 
 import os
@@ -99,7 +100,7 @@ _ENV_MODEL = "HIVE_SWARM_LLM_MODEL"
 _ENV_MAX_TOKENS = "HIVE_SWARM_LLM_MAX_TOKENS"
 _ENV_TEMPERATURE = "HIVE_SWARM_LLM_TEMPERATURE"
 _ENV_STREAM = "HIVE_SWARM_LLM_STREAM"
-_ENV_COST = "HIVE_SWARM_COST_TRACKING"   # v7 NEW (F-17-ENV1)
+_ENV_COST = "HIVE_SWARM_COST_TRACKING"  # v7 NEW (F-17-ENV1)
 
 
 _FALSY_STRINGS = ("0", "false", "no", "off", "")
@@ -153,9 +154,7 @@ def resolve_llm_settings(
         settings["stream_enabled"] = _env_bool(_ENV_STREAM, settings["stream_enabled"])
     # v7 — F-17-ENV1
     if os.environ.get(_ENV_COST) is not None:
-        settings["cost_tracking_enabled"] = _env_bool(
-            _ENV_COST, settings["cost_tracking_enabled"]
-        )
+        settings["cost_tracking_enabled"] = _env_bool(_ENV_COST, settings["cost_tracking_enabled"])
 
     p_overrides = settings.get("role_provider_overrides") or {}
     if isinstance(p_overrides, dict) and role and role in p_overrides:
@@ -174,10 +173,15 @@ def resolve_llm_settings(
 
 # ── Prompt building (unchanged from v6) ──────────────────────────────────
 
+
 def _build_user_prompt(
-    task_description, task_context, *,
-    include_retrieved_patterns=True, include_objective=True,
-    max_pattern_chars=300, max_patterns=5,
+    task_description,
+    task_context,
+    *,
+    include_retrieved_patterns=True,
+    include_objective=True,
+    max_pattern_chars=300,
+    max_patterns=5,
 ):
     parts = [task_description.strip()]
     shared = (task_context or {}).get("shared_context") or {}
@@ -212,11 +216,20 @@ def _build_user_prompt(
 # ── Response extraction helpers (unchanged from v6) ──────────────────────
 
 _TEXT_ATTR_CANDIDATES = (
-    "content", "text", "response_text", "output", "message",
-    "final_response", "validated_response",
+    "content",
+    "text",
+    "response_text",
+    "output",
+    "message",
+    "final_response",
+    "validated_response",
 )
 _DICT_KEY_CANDIDATES = (
-    "content", "text", "response_text", "output", "final_response",
+    "content",
+    "text",
+    "response_text",
+    "output",
+    "final_response",
     "validated_response",
 )
 _USAGE_ATTR_CANDIDATES = ("usage", "token_usage")
@@ -266,9 +279,7 @@ def _extract_text(resp):
                     return t
     s = str(resp)
     if s.startswith("<") and s.endswith(">"):
-        raise WorkerLLMError(
-            f"could not extract text from response of type {type(resp).__name__}"
-        )
+        raise WorkerLLMError(f"could not extract text from response of type {type(resp).__name__}")
     return s
 
 
@@ -362,6 +373,7 @@ def _extract_finish_reason(resp):
 
 # ── Dispatcher protocol (unchanged from v6) ──────────────────────────────
 
+
 class WorkerLLMDispatcher(Protocol):
     def dispatch(self, role, task_description, context=None) -> str: ...
     def dispatch_full(self, role, task_description, context=None) -> WorkerLLMResponse: ...
@@ -372,14 +384,14 @@ class WorkerLLMDispatcher(Protocol):
 
 _STUB_TEMPLATES = {
     "researcher": "[RESEARCHER] Analysis of: {desc}",
-    "architect":  "[ARCHITECT] Design for: {desc}",
-    "coder":      "[CODER] Implementation for: {desc}",
-    "tester":     "[TESTER] Test suite for: {desc}",
-    "reviewer":   "[REVIEWER] Review for: {desc}",
-    "security":   "[SECURITY] Security audit for: {desc}",
-    "optimizer":  "[OPTIMIZER] Optimization analysis for: {desc}",
+    "architect": "[ARCHITECT] Design for: {desc}",
+    "coder": "[CODER] Implementation for: {desc}",
+    "tester": "[TESTER] Test suite for: {desc}",
+    "reviewer": "[REVIEWER] Review for: {desc}",
+    "security": "[SECURITY] Security audit for: {desc}",
+    "optimizer": "[OPTIMIZER] Optimization analysis for: {desc}",
     "coordinator": "[COORDINATOR] Coordination plan for: {desc}",
-    "queen":      "[COORDINATOR] Coordination plan for: {desc}",
+    "queen": "[COORDINATOR] Coordination plan for: {desc}",
     "documenter": "[AGENT] Output for: {desc}",
 }
 _STUB_DEFAULT = "[AGENT] Output for: {desc}"
@@ -396,10 +408,13 @@ class StubDispatcher:
         template = _STUB_TEMPLATES.get(role, _STUB_DEFAULT)
         text = template.format(desc=task_description[: self.max_desc_chars])
         return WorkerLLMResponse(
-            text=text, backend="stub",
-            input_tokens=0, output_tokens=0,
+            text=text,
+            backend="stub",
+            input_tokens=0,
+            output_tokens=0,
             model_id_used="stub:deterministic",
-            finish_reason="stop", provider_id="stub",
+            finish_reason="stop",
+            provider_id="stub",
         )
 
     def dispatch_stream(self, role, task_description, context=None):
@@ -417,8 +432,7 @@ def _default_adapter_factory(provider_id):
         from ai_provider_swarm_gateway.graph.nodes import _get_adapter  # type: ignore
     except ImportError as e:
         raise WorkerLLMError(
-            "ai-provider-swarm-gateway is not installed; "
-            "install it to use llm_backend='gateway'."
+            "ai-provider-swarm-gateway is not installed; install it to use llm_backend='gateway'."
         ) from e
     return _get_adapter(provider_id)
 
@@ -443,9 +457,7 @@ class _StreamingGuard:
         max_output_chars: int = 16384,
         check_every_n_chunks: int = 4,
     ) -> None:
-        self.compiled_patterns = [
-            _re_v8.compile(p) for p in (guard_patterns or [])
-        ]
+        self.compiled_patterns = [_re_v8.compile(p) for p in (guard_patterns or [])]
         self.max_output_chars = int(max_output_chars)
         self.check_every_n_chunks = max(1, int(check_every_n_chunks))
         self._chunks_since_check = 0
@@ -478,11 +490,20 @@ class _StreamingGuard:
 class GatewayDispatcher:
     _METHOD_CANDIDATES = ("chat", "chat_completion", "complete", "call", "invoke")
 
-    def __init__(self, *, default_provider="9router", default_model="",
-                 max_tokens=512, temperature=0.0, timeout_seconds=60.0,
-                 include_retrieved_patterns=True, include_objective=True,
-                 role_provider_overrides=None, role_model_overrides=None,
-                 adapter_factory=None):
+    def __init__(
+        self,
+        *,
+        default_provider="9router",
+        default_model="",
+        max_tokens=512,
+        temperature=0.0,
+        timeout_seconds=60.0,
+        include_retrieved_patterns=True,
+        include_objective=True,
+        role_provider_overrides=None,
+        role_model_overrides=None,
+        adapter_factory=None,
+    ):
         self.default_provider = default_provider
         self.default_model = default_model
         self.max_tokens = int(max_tokens)
@@ -526,12 +547,17 @@ class GatewayDispatcher:
                 last_err = e
                 if "model" in kwargs_with_model:
                     try:
-                        kwargs_no_model = {k: v for k, v in kwargs_with_model.items() if k != "model"}
+                        kwargs_no_model = {
+                            k: v for k, v in kwargs_with_model.items() if k != "model"
+                        }
                         return method(messages=messages, **kwargs_no_model)
                     except TypeError as e2:
                         last_err = e2
                 try:
-                    return method(prompt=user_prompt, **{k: v for k, v in kwargs_with_model.items() if k != "model"})
+                    return method(
+                        prompt=user_prompt,
+                        **{k: v for k, v in kwargs_with_model.items() if k != "model"},
+                    )
                 except TypeError as e3:
                     last_err = e3
                 try:
@@ -565,21 +591,23 @@ class GatewayDispatcher:
 
         if not getattr(adapter, "is_configured", lambda: True)():
             raise WorkerLLMError(
-                f"adapter {provider_id!r} is not configured "
-                f"(typically missing API key env var)"
+                f"adapter {provider_id!r} is not configured (typically missing API key env var)"
             )
 
         system_prompt = get_system_prompt(role)
         user_prompt = _build_user_prompt(
-            task_description, context,
+            task_description,
+            context,
             include_retrieved_patterns=self.include_retrieved_patterns,
             include_objective=self.include_objective,
         )
 
         t0 = time.monotonic()
         resp = self._call_adapter(
-            adapter, system_prompt=system_prompt,
-            user_prompt=user_prompt, model_id=model_id,
+            adapter,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model_id=model_id,
         )
         latency_ms = int((time.monotonic() - t0) * 1000)
 
@@ -589,9 +617,13 @@ class GatewayDispatcher:
         finish_reason = _extract_finish_reason(resp)
 
         return WorkerLLMResponse(
-            text=text, backend="gateway", latency_ms=latency_ms,
-            input_tokens=in_tok, output_tokens=out_tok,
-            model_id_used=actual_model, finish_reason=finish_reason,
+            text=text,
+            backend="gateway",
+            latency_ms=latency_ms,
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            model_id_used=actual_model,
+            finish_reason=finish_reason,
             provider_id=provider_id,
         )
 
@@ -630,14 +662,18 @@ class GatewayDispatcher:
         if not callable(chat_stream):
             full = self.dispatch_full(role, task_description, context)
             yield StreamChunk(
-                delta=full.text, text=full.text, index=0,
-                done=True, finish_reason=full.finish_reason or "stop",
+                delta=full.text,
+                text=full.text,
+                index=0,
+                done=True,
+                finish_reason=full.finish_reason or "stop",
             )
             return
 
         system_prompt = get_system_prompt(role)
         user_prompt = _build_user_prompt(
-            task_description, context,
+            task_description,
+            context,
             include_retrieved_patterns=self.include_retrieved_patterns,
             include_objective=self.include_objective,
         )
@@ -653,7 +689,9 @@ class GatewayDispatcher:
             stream = chat_stream(messages=messages, **kwargs)
         except TypeError:
             try:
-                stream = chat_stream(messages=messages, **{k: v for k, v in kwargs.items() if k != "model"})
+                stream = chat_stream(
+                    messages=messages, **{k: v for k, v in kwargs.items() if k != "model"}
+                )
             except Exception as e:
                 raise WorkerLLMError(f"chat_stream call failed: {e}") from e
         except Exception as e:
@@ -673,8 +711,11 @@ class GatewayDispatcher:
                 guard.check(accumulated, index)
 
                 yield StreamChunk(
-                    delta=delta, text=accumulated, index=index,
-                    done=False, finish_reason=last_finish,
+                    delta=delta,
+                    text=accumulated,
+                    index=index,
+                    done=False,
+                    finish_reason=last_finish,
                 )
                 index += 1
         except StreamingHITLInterrupt:
@@ -684,8 +725,11 @@ class GatewayDispatcher:
             raise WorkerLLMError(f"chat_stream iteration raised: {e}") from e
 
         yield StreamChunk(
-            delta="", text=accumulated, index=index,
-            done=True, finish_reason=last_finish or "stop",
+            delta="",
+            text=accumulated,
+            index=index,
+            done=True,
+            finish_reason=last_finish or "stop",
         )
 
 
@@ -715,9 +759,7 @@ def _normalise_stream_chunk(raw):
 
 
 def estimate_call_cost(model_id, input_tokens, output_tokens, *, table=None):
-    return (table or DEFAULT_PRICING_TABLE).estimate_cost(
-        model_id, input_tokens, output_tokens
-    )
+    return (table or DEFAULT_PRICING_TABLE).estimate_cost(model_id, input_tokens, output_tokens)
 
 
 def build_dispatcher(settings):
@@ -728,9 +770,7 @@ def build_dispatcher(settings):
 
     if backend == "gateway":
         provider = (
-            settings.get("effective_provider")
-            or settings.get("default_provider")
-            or "9router"
+            settings.get("effective_provider") or settings.get("default_provider") or "9router"
         )
         model = settings.get("effective_model") or settings.get("default_model") or ""
         return GatewayDispatcher(
@@ -749,12 +789,22 @@ def build_dispatcher(settings):
 
 
 __all__ = [
-    "WorkerLLMDispatcher", "WorkerLLMResponse", "StreamChunk",
-    "StubDispatcher", "GatewayDispatcher", "WorkerLLMError",
+    "WorkerLLMDispatcher",
+    "WorkerLLMResponse",
+    "StreamChunk",
+    "StubDispatcher",
+    "GatewayDispatcher",
+    "WorkerLLMError",
     "StreamingHITLInterrupt",
-    "build_dispatcher", "resolve_llm_settings", "estimate_call_cost",
+    "build_dispatcher",
+    "resolve_llm_settings",
+    "estimate_call_cost",
     "DEFAULT_SETTINGS",
-    "_build_user_prompt", "_extract_text", "_extract_usage",
-    "_extract_model_id", "_extract_finish_reason",
-    "_normalise_stream_chunk", "_env_bool",
+    "_build_user_prompt",
+    "_extract_text",
+    "_extract_usage",
+    "_extract_model_id",
+    "_extract_finish_reason",
+    "_normalise_stream_chunk",
+    "_env_bool",
 ]

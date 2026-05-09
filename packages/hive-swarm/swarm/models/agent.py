@@ -5,6 +5,7 @@ History:
   v5 TokenUsage + WorkerResult.usage
 v6: TokenUsage gains optional cost_usd field (USD; None = unknown/free).
 """
+
 from __future__ import annotations
 
 import secrets
@@ -18,6 +19,7 @@ from .types import AgentRole, AgentStatus
 
 class TokenUsage(FrozenModel):
     """Token counts + optional cost. All numeric fields ≥ 0; cost_usd nullable."""
+
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
     model_id_used: str = Field(default="", max_length=256)
@@ -40,6 +42,7 @@ class TokenUsage(FrozenModel):
 
 class AgentSpec(FrozenModel):
     """Immutable agent identity record."""
+
     agent_id: str = Field(..., min_length=1, max_length=64)
     name: str = Field(..., min_length=1, max_length=128)
     role: AgentRole
@@ -59,6 +62,7 @@ class AgentSpec(FrozenModel):
 
 class AgentState(HardenedModel):
     """Mutable per-agent state passed to worker LangGraph nodes."""
+
     agent_id: str = Field(..., min_length=1)
     role: AgentRole
     status: AgentStatus = "idle"
@@ -90,9 +94,7 @@ class AgentState(HardenedModel):
 
     def mark_done(self, output: str, confidence: float) -> None:
         if self.status == "failed":
-            raise RuntimeError(
-                f"Cannot mark_done agent {self.agent_id!r} that already failed"
-            )
+            raise RuntimeError(f"Cannot mark_done agent {self.agent_id!r} that already failed")
         self.status = "done"
         self.output = output
         self.confidence = confidence
@@ -116,6 +118,7 @@ class AgentState(HardenedModel):
 
 class AgentVote(FrozenModel):
     """A single agent's immutable vote."""
+
     agent_id: str = Field(..., min_length=1)
     agent_role: AgentRole
     proposed_action: str = Field(..., min_length=1, max_length=2048)
@@ -141,6 +144,7 @@ _VOTE_ACTION_MAX = 2048
 
 class WorkerResult(FrozenModel):
     """Frozen result record from one worker."""
+
     agent_id: str = Field(..., min_length=1)
     agent_role: AgentRole
     task_id: str = Field(..., min_length=1)
@@ -186,6 +190,7 @@ class WorkerResult(FrozenModel):
 
 class ApprovalDecision(FrozenModel):
     """Strict shape for HITL resume payload."""
+
     decision: Literal["approve", "deny"]
     reviewer_id: str = Field(..., min_length=1, max_length=128)
     decision_token: str = Field(..., min_length=8, max_length=64)

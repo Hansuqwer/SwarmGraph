@@ -9,6 +9,7 @@ Covered:
 
 (F-29-CORR1 lives in the gateway-side regression file.)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -27,6 +28,7 @@ from swarm.models.types import QUEEN_NODE_NAMES
 
 
 # ── F-13-CORR2: all 5 queen aliases registered ─────────────────────────
+
 
 def _try_get_compiled_graph_nodes(compiled: Any) -> set[str]:
     """Best-effort: extract registered node names from a compiled LangGraph.
@@ -97,6 +99,7 @@ def test_factory_registers_all_5_queen_aliases_for_each_topology():
 
 
 # ── F-13-CORR3: mock graph mirrors SONA edges on tier-1 / tier-2 ────────
+
 
 def _mock_state(objective: str) -> dict:
     """Build a minimal SwarmState dict for mock invocation."""
@@ -173,11 +176,11 @@ def test_mock_graph_distills_on_tier_3_too_unchanged():
 
 # ── Sanity: F-13A-CORR1 dedupe still in place (regression of regression) ─
 
+
 def test_worker_results_dedupe_still_idempotent():
     """Re-prove F-13A-CORR1 — F-13-CORR2 / F-13-CORR3 must not regress it."""
     fanout = [
-        {"agent_id": f"role-{i}", "task_id": f"t-1-{i}", "output": f"o-{i}"}
-        for i in range(5)
+        {"agent_id": f"role-{i}", "task_id": f"t-1-{i}", "output": f"o-{i}"} for i in range(5)
     ]
     state = []
     for _ in range(16):

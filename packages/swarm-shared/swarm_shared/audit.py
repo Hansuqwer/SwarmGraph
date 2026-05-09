@@ -37,6 +37,7 @@ Canonical serialization:
   insufficient precision could cause cross-version drift; always
   pre-quantize floats before assignment.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -91,8 +92,8 @@ class AuditRecord(BaseModel):
     timestamp: float = Field(default_factory=time.time)
     payload: dict[str, Any] = Field(default_factory=dict)
     prev_hash: str = Field(..., min_length=1)
-    record_hash: str = Field(..., min_length=64, max_length=64)   # 64 hex = SHA-256
-    signature: str = Field(..., min_length=64, max_length=64)     # 64 hex = HMAC-SHA256
+    record_hash: str = Field(..., min_length=64, max_length=64)  # 64 hex = SHA-256
+    signature: str = Field(..., min_length=64, max_length=64)  # 64 hex = HMAC-SHA256
 
     def to_jsonl_line(self) -> str:
         """Serialize to a single JSON line (for append to .jsonl)."""
@@ -100,6 +101,7 @@ class AuditRecord(BaseModel):
 
 
 # ── Canonicalisation ─────────────────────────────────────────────────────
+
 
 def _canonical_payload(payload: Any) -> str:
     """Deterministic JSON of an arbitrary payload.
@@ -122,16 +124,18 @@ def _compute_record_hash(
     prev_hash: str,
 ) -> str:
     """SHA-256 over the canonical body of a record (excluding signature)."""
-    body = "|".join([
-        f"kind={kind}",
-        f"swarm_id={swarm_id}",
-        f"tenant_id={tenant_id}",
-        f"sequence={sequence}",
-        # Quantize timestamp to milliseconds to avoid float-precision drift
-        f"timestamp={int(timestamp * 1000)}",
-        f"payload={_canonical_payload(payload)}",
-        f"prev_hash={prev_hash}",
-    ])
+    body = "|".join(
+        [
+            f"kind={kind}",
+            f"swarm_id={swarm_id}",
+            f"tenant_id={tenant_id}",
+            f"sequence={sequence}",
+            # Quantize timestamp to milliseconds to avoid float-precision drift
+            f"timestamp={int(timestamp * 1000)}",
+            f"payload={_canonical_payload(payload)}",
+            f"prev_hash={prev_hash}",
+        ]
+    )
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
@@ -143,6 +147,7 @@ def _compute_signature(record_hash: str, secret: bytes | str) -> str:
 
 
 # ── Public API ───────────────────────────────────────────────────────────
+
 
 def sign_record(
     *,
@@ -265,18 +270,16 @@ def verify_chain(
         expected_sequence += 1
         count += 1
     if expected_count is not None and count != expected_count:
-        raise AuditChainBroken(
-            f"record count mismatch: expected={expected_count}, got={count}"
-        )
+        raise AuditChainBroken(f"record count mismatch: expected={expected_count}, got={count}")
     if expected_head_hash is not None and prev_hash != expected_head_hash:
         raise AuditChainBroken(
-            f"head hash mismatch: expected={expected_head_hash[:16]}..., "
-            f"got={prev_hash[:16]}..."
+            f"head hash mismatch: expected={expected_head_hash[:16]}..., got={prev_hash[:16]}..."
         )
     return count
 
 
 # ── JSONL persistence ────────────────────────────────────────────────────
+
 
 def append_jsonl(path: Path, record: AuditRecord) -> None:
     """Append a single record to a JSONL file. Atomic per-line append.
@@ -315,13 +318,12 @@ def load_jsonl_chain(path: Path) -> list[AuditRecord]:
             try:
                 records.append(AuditRecord.model_validate_json(line))
             except Exception as e:
-                raise ValueError(
-                    f"audit log line {lineno} malformed: {e}"
-                ) from e
+                raise ValueError(f"audit log line {lineno} malformed: {e}") from e
     return records
 
 
 # ── Convenience: stateful chain builder ──────────────────────────────────
+
 
 class AuditChain:
     """Stateful helper that tracks chain head + sequence for you.

@@ -5,6 +5,7 @@ F-18-CORR2: uses swarm.assert_no_drift() (single source of truth)
 F-18-CORR3: removed dead consensus_result-fallback (tier-1/tier-2 paths skip judge)
 F-18-OBS1: history entry includes the actual hash of the candidate
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -31,27 +32,30 @@ def judge_node(state: dict[str, Any]) -> dict[str, Any]:
         swarm.assert_no_drift(candidate)
     except ValueError:
         # state already mutated to status="drifted"; record diagnostic + return
-        missing = list(
-            set(swarm.objective.lower().split())
-            - set(candidate.lower().split())
-        )[:10]
-        swarm.append_history("drift_detected", {
-            "objective_hash": swarm.objective_hash,
-            "candidate_preview": candidate[:100],
-            "candidate_hash": stable_hash(candidate)[:8],
-            "missing_tokens": missing,
-        })
+        missing = list(set(swarm.objective.lower().split()) - set(candidate.lower().split()))[:10]
+        swarm.append_history(
+            "drift_detected",
+            {
+                "objective_hash": swarm.objective_hash,
+                "candidate_preview": candidate[:100],
+                "candidate_hash": stable_hash(candidate)[:8],
+                "missing_tokens": missing,
+            },
+        )
         swarm.touch()
         return swarm.to_json_dict()
 
     # Accepted
     swarm.final_output = candidate
     swarm.status = "distilling"
-    swarm.append_history("judge", {
-        "outcome": "accepted",
-        "drift_check": "passed",
-        "candidate_hash": stable_hash(candidate)[:8],   # F-18-OBS1
-    })
+    swarm.append_history(
+        "judge",
+        {
+            "outcome": "accepted",
+            "drift_check": "passed",
+            "candidate_hash": stable_hash(candidate)[:8],  # F-18-OBS1
+        },
+    )
     swarm.touch()
     return swarm.to_json_dict()
 

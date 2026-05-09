@@ -1,12 +1,14 @@
 """Qwen/Alibaba Cloud adapter stub — requires QWEN_API_KEY."""
+
 from __future__ import annotations
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 
+
 class QwenAdapter(ProviderAdapter):
-    provider_id   = "qwen"
+    provider_id = "qwen"
     default_model = "qwen-turbo"
-    _base_url     = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    _base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
     def is_configured(self) -> bool:
         return bool(self._get_env("QWEN_API_KEY"))
@@ -16,6 +18,7 @@ class QwenAdapter(ProviderAdapter):
             return self._not_configured_response()
         try:
             import openai
+
             client = openai.OpenAI(api_key=self._get_env("QWEN_API_KEY"), base_url=self._base_url)
             resp = client.chat.completions.create(
                 model=model or self.default_model,

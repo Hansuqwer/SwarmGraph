@@ -1,4 +1,5 @@
 """Tests for v6 CLI ergonomics: --since filter + canonized fixes + --stream + cost rollup."""
+
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ runner = CliRunner()
 
 # ── _parse_duration_to_seconds ───────────────────────────────────────────
 
+
 def test_parse_duration_seconds():
     assert _parse_duration_to_seconds("30s") == 30
     assert _parse_duration_to_seconds("5m") == 300
@@ -21,7 +23,7 @@ def test_parse_duration_seconds():
 
 
 def test_parse_duration_with_whitespace():
-    assert _parse_duration_to_seconds("  30 m") == 1800   # space between
+    assert _parse_duration_to_seconds("  30 m") == 1800  # space between
     # The regex tolerates the space: "30 m" → 30 m
     # If your local impl is stricter, adjust this test.
 
@@ -30,12 +32,13 @@ def test_parse_duration_invalid_format_raises():
     with pytest.raises(ValueError):
         _parse_duration_to_seconds("abc")
     with pytest.raises(ValueError):
-        _parse_duration_to_seconds("10")        # missing unit
+        _parse_duration_to_seconds("10")  # missing unit
     with pytest.raises(ValueError):
-        _parse_duration_to_seconds("10w")       # unsupported unit
+        _parse_duration_to_seconds("10w")  # unsupported unit
 
 
 # ── Canonized CLI fix #1: empty quota message ────────────────────────────
+
 
 def test_quota_show_empty_uses_canonical_message(tmp_path: Path):
     fp = tmp_path / "usage.json"
@@ -47,12 +50,12 @@ def test_quota_show_empty_uses_canonical_message(tmp_path: Path):
 
 # ── --since filter ──────────────────────────────────────────────────────
 
+
 def test_quota_show_since_invalid_format_exits_2(tmp_path: Path):
     fp = tmp_path / "usage.json"
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "1",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--requests", "1", "--storage", str(fp)],
     )
     result = runner.invoke(
         app,
@@ -66,8 +69,7 @@ def test_quota_show_since_filter_includes_no_reset_at(tmp_path: Path):
     fp = tmp_path / "usage.json"
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "1",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--requests", "1", "--storage", str(fp)],
     )
     result = runner.invoke(
         app,
@@ -85,8 +87,7 @@ def test_quota_show_since_filter_excludes_old(tmp_path: Path):
     # Increment + set reset_at in the distant past
     runner.invoke(
         app,
-        ["quota", "increment", "--provider", "openai", "--requests", "1",
-         "--storage", str(fp)],
+        ["quota", "increment", "--provider", "openai", "--requests", "1", "--storage", str(fp)],
     )
     # Manually edit usage.json to put reset_at far in the past
     data = json.loads(fp.read_text())
@@ -106,6 +107,7 @@ def test_quota_show_since_filter_excludes_old(tmp_path: Path):
 
 # ── Canonized CLI fix #2: missing-gateway error ──────────────────────────
 
+
 def test_route_missing_gateway_includes_vendor_them_into(monkeypatch):
     """If upstream import fails, the error message must include the
     'Vendor them into...' actionable line."""
@@ -123,9 +125,11 @@ def test_route_missing_gateway_includes_vendor_them_into(monkeypatch):
 
 # ── swarm --stream + cost rollup ─────────────────────────────────────────
 
+
 def _hive_available():
     try:
         from swarm import SwarmConfig, build_swarm_graph  # noqa
+
         return True
     except Exception:
         return False
@@ -140,7 +144,7 @@ def test_swarm_anti_drift_off_flag():
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["anti_drift_mode"] == "off"
 
@@ -161,7 +165,9 @@ def test_swarm_cost_rollup_in_json(monkeypatch):
     from swarm.llm import dispatch as dispatch_mod
 
     class _FakeAdapter:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat(self, *, messages, max_tokens, temperature, model=None):
             # Return a priced model so cost is known
             return {
@@ -171,22 +177,33 @@ def test_swarm_cost_rollup_in_json(monkeypatch):
             }
 
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: _FakeAdapter(),
     )
 
     result = runner.invoke(
         app,
-        ["swarm",
-         "--prompt", "implement comprehensive distributed authentication architecture",
-         "--backend", "gateway", "--provider", "9router",
-         "--model", "claude-opus-4-7",
-         "--anti-drift", "off",  # avoid retry storm in tests
-         "--max-agents", "3", "--json"],
+        [
+            "swarm",
+            "--prompt",
+            "implement comprehensive distributed authentication architecture",
+            "--backend",
+            "gateway",
+            "--provider",
+            "9router",
+            "--model",
+            "claude-opus-4-7",
+            "--anti-drift",
+            "off",  # avoid retry storm in tests
+            "--max-agents",
+            "3",
+            "--json",
+        ],
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     # If the swarm completed and went through workers, cost should be populated
     if payload["worker_count"] >= 1:
@@ -198,7 +215,9 @@ def test_swarm_no_cost_flag_disables_tracking(monkeypatch):
     from swarm.llm import dispatch as dispatch_mod
 
     class _FakeAdapter:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat(self, *, messages, max_tokens, temperature, model=None):
             return {
                 "model": "claude-opus-4-7",
@@ -207,22 +226,34 @@ def test_swarm_no_cost_flag_disables_tracking(monkeypatch):
             }
 
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: _FakeAdapter(),
     )
 
     result = runner.invoke(
         app,
-        ["swarm",
-         "--prompt", "implement comprehensive distributed authentication architecture",
-         "--backend", "gateway", "--provider", "9router",
-         "--model", "claude-opus-4-7",
-         "--anti-drift", "off",
-         "--max-agents", "3", "--no-cost", "--json"],
+        [
+            "swarm",
+            "--prompt",
+            "implement comprehensive distributed authentication architecture",
+            "--backend",
+            "gateway",
+            "--provider",
+            "9router",
+            "--model",
+            "claude-opus-4-7",
+            "--anti-drift",
+            "off",
+            "--max-agents",
+            "3",
+            "--no-cost",
+            "--json",
+        ],
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     # With cost tracking disabled, no individual worker has cost_usd set
     # → total_cost_usd is None
@@ -236,29 +267,42 @@ def test_swarm_stream_flag_propagates(monkeypatch):
     from swarm.llm import dispatch as dispatch_mod
 
     class _FakeStreamingAdapter:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat_stream(self, *, messages, max_tokens, temperature, model=None):
             yield {"delta": "streaming ", "finish_reason": ""}
             yield {"delta": "result", "finish_reason": "stop"}
+
         def chat(self, *, messages, max_tokens, temperature, model=None):
-            return {"choices": [{"message": {"content": "non-streamed"},
-                                 "finish_reason": "stop"}]}
+            return {"choices": [{"message": {"content": "non-streamed"}, "finish_reason": "stop"}]}
 
     monkeypatch.setattr(
-        dispatch_mod, "_default_adapter_factory",
+        dispatch_mod,
+        "_default_adapter_factory",
         lambda pid: _FakeStreamingAdapter(),
     )
 
     result = runner.invoke(
         app,
-        ["swarm",
-         "--prompt", "implement comprehensive distributed authentication architecture",
-         "--backend", "gateway", "--provider", "9router",
-         "--anti-drift", "off",
-         "--stream", "--max-agents", "3", "--json"],
+        [
+            "swarm",
+            "--prompt",
+            "implement comprehensive distributed authentication architecture",
+            "--backend",
+            "gateway",
+            "--provider",
+            "9router",
+            "--anti-drift",
+            "off",
+            "--stream",
+            "--max-agents",
+            "3",
+            "--json",
+        ],
     )
     assert result.exit_code in (0, 4)
     out = result.stdout.strip()
-    last_json = out[out.find("{"):]
+    last_json = out[out.find("{") :]
     payload = json.loads(last_json)
     assert payload["streamed"] is True

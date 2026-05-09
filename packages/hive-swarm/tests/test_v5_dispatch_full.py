@@ -1,4 +1,5 @@
 """Tests for v5 dispatch_full + WorkerLLMResponse + per-role model overrides."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,6 +20,7 @@ from swarm.llm.dispatch import (
 
 # ── WorkerLLMResponse contract ───────────────────────────────────────────
 
+
 def test_worker_llm_response_total_tokens():
     r = WorkerLLMResponse(text="x", backend="gateway", input_tokens=10, output_tokens=20)
     assert r.total_tokens == 30
@@ -32,6 +34,7 @@ def test_worker_llm_response_default_zeros():
 
 
 # ── StubDispatcher.dispatch_full ─────────────────────────────────────────
+
 
 def test_stub_dispatch_full_returns_response_object():
     d = StubDispatcher()
@@ -55,10 +58,12 @@ def test_stub_dispatch_returns_str_unchanged():
 
 # ── _extract_usage across shapes ─────────────────────────────────────────
 
+
 def test_extract_usage_from_nine_router_attrs():
     class FakeNRR:
         input_tokens = 12
         output_tokens = 34
+
     in_t, out_t = _extract_usage(FakeNRR())
     assert in_t == 12
     assert out_t == 34
@@ -75,8 +80,10 @@ def test_extract_usage_from_object_with_usage_subfield():
     class Usage:
         prompt_tokens = 7
         completion_tokens = 11
+
     class Resp:
         usage = Usage()
+
     in_t, out_t = _extract_usage(Resp())
     assert in_t == 7
     assert out_t == 11
@@ -94,11 +101,14 @@ def test_extract_usage_handles_none_and_str():
 
 def test_extract_usage_token_usage_alias():
     """Some adapters expose .token_usage instead of .usage."""
+
     class U:
         input_tokens = 3
         output_tokens = 5
+
     class R:
         token_usage = U()
+
     assert _extract_usage(R()) == (3, 5)
 
 
@@ -109,9 +119,11 @@ def test_extract_usage_top_level_dict_keys():
 
 # ── _extract_model_id + _extract_finish_reason ───────────────────────────
 
+
 def test_extract_model_id_from_attr():
     class R:
         model_actually_used = "stepfun/step-3.5-flash:free"
+
     assert _extract_model_id(R()) == "stepfun/step-3.5-flash:free"
 
 
@@ -129,6 +141,7 @@ def test_extract_finish_reason_default_empty():
 
 
 # ── Per-role model resolution (v5) ───────────────────────────────────────
+
 
 def test_role_model_override_applied():
     ctx = {
@@ -150,7 +163,7 @@ def test_role_model_override_applied():
 
     assert coder["effective_model"] == "anthropic/claude-opus-4-7"
     assert tester["effective_model"] == "openai/gpt-4o-mini"
-    assert reviewer["effective_model"] == "kc/kilo-auto/free"   # falls to default
+    assert reviewer["effective_model"] == "kc/kilo-auto/free"  # falls to default
 
 
 def test_default_model_empty_means_adapter_default():
@@ -163,7 +176,7 @@ def test_default_model_empty_means_adapter_default():
         }
     }
     s = resolve_llm_settings(ctx, role="coder")
-    assert s["effective_model"] == ""   # empty → adapter chooses
+    assert s["effective_model"] == ""  # empty → adapter chooses
 
 
 def test_env_model_override(monkeypatch):
@@ -188,6 +201,7 @@ def test_role_override_beats_env(monkeypatch):
 
 
 # ── GatewayDispatcher.dispatch_full with mocked adapter ──────────────────
+
 
 class _FakeAdapter:
     def __init__(self, *, model_seen: list[str] | None = None):
@@ -218,7 +232,7 @@ def test_gateway_dispatch_full_returns_typed_response():
     assert r.total_tokens == 32
     assert r.finish_reason == "stop"
     assert r.provider_id == "9router"
-    assert r.model_id_used   # at minimum the fallback is set
+    assert r.model_id_used  # at minimum the fallback is set
 
 
 def test_gateway_dispatch_passes_per_role_model():
@@ -236,8 +250,11 @@ def test_gateway_dispatch_passes_per_role_model():
 
 def test_gateway_dispatch_no_model_when_unset():
     """Adapter that doesn't accept model= still works; we drop the kwarg."""
+
     class AdapterNoModel:
-        def is_configured(self): return True
+        def is_configured(self):
+            return True
+
         def chat(self, *, messages, max_tokens, temperature):
             return "ok"
 
@@ -252,13 +269,16 @@ def test_gateway_dispatch_no_model_when_unset():
 
 # ── build_dispatcher passes role_model_overrides through ────────────────
 
+
 def test_build_dispatcher_gateway_with_role_models():
-    d = build_dispatcher({
-        "backend": "gateway",
-        "effective_provider": "9router",
-        "effective_model": "kc/kilo-auto/free",
-        "role_model_overrides": {"coder": "anthropic/claude-opus-4-7"},
-    })
+    d = build_dispatcher(
+        {
+            "backend": "gateway",
+            "effective_provider": "9router",
+            "effective_model": "kc/kilo-auto/free",
+            "role_model_overrides": {"coder": "anthropic/claude-opus-4-7"},
+        }
+    )
     assert isinstance(d, GatewayDispatcher)
     assert d.role_model_overrides == {"coder": "anthropic/claude-opus-4-7"}
     assert d.default_model == "kc/kilo-auto/free"

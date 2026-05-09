@@ -1,4 +1,5 @@
 """Tests for multi-tenant QuotaTracker isolation."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from ai_provider_swarm_gateway.quota.tracker import (
 
 
 # ── Tenant id validation ────────────────────────────────────────────────
+
 
 def test_valid_tenant_ids():
     for tid in ("alice", "team_blue", "tenant-001", "ABC123", "a"):
@@ -35,6 +37,7 @@ def test_validate_no_traversal_via_dotdot():
 
 # ── tenant_storage_path ──────────────────────────────────────────────────
 
+
 def test_tenant_storage_path_contains_tenant_id():
     path = QuotaTracker.tenant_storage_path("alice")
     assert "alice" in str(path)
@@ -48,6 +51,7 @@ def test_tenant_storage_path_rejects_invalid():
 
 
 # ── Construction modes ──────────────────────────────────────────────────
+
 
 def test_constructor_storage_path_takes_precedence(tmp_path: Path):
     fp = tmp_path / "explicit.json"
@@ -95,6 +99,7 @@ def test_env_var_overridden_by_explicit_storage(monkeypatch, tmp_path: Path):
 
 # ── Isolation: two tenants don't see each other's usage ─────────────────
 
+
 def test_two_tenants_isolated(tmp_path: Path, monkeypatch):
     """Critical: tenant alice's quota MUST NOT leak into tenant bob's view."""
     # Use temp dir as the home base by monkey-patching expanduser
@@ -102,6 +107,7 @@ def test_two_tenants_isolated(tmp_path: Path, monkeypatch):
     # Recompute the default base after env change
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     alice = tracker_mod.QuotaTracker.for_tenant("alice")
@@ -125,6 +131,7 @@ def test_list_tenants_returns_only_real_dirs(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     # Empty initially
@@ -144,6 +151,7 @@ def test_single_tenant_default_unchanged(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("AI_PROVIDER_GATEWAY_TENANT", raising=False)
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     t = tracker_mod.QuotaTracker()
@@ -157,6 +165,7 @@ def test_reset_only_affects_one_tenant(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
+
     importlib.reload(tracker_mod)
 
     alice = tracker_mod.QuotaTracker.for_tenant("alice")

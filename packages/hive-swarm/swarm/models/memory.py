@@ -8,6 +8,7 @@ F-26C: namespace-keyed search avoids full-list scan
 F-26-CORR1: _cap() preserves insertion order (sorts a copy when evicting)
 F-12-T1 / F-26-CORR2: model_validator runs initial cap
 """
+
 from __future__ import annotations
 
 import json
@@ -23,8 +24,10 @@ from .base import FrozenModel, HardenedModel, stable_hash
 
 # ── SwarmMemoryEntry ───────────────────────────────────────────────────────
 
+
 class SwarmMemoryEntry(FrozenModel):
     """A single stored insight/pattern."""
+
     key: str = Field(..., min_length=1, max_length=256)
     value: str = Field(..., min_length=1, max_length=8192)
     namespace: str = Field(default="default", min_length=1, max_length=64)
@@ -45,6 +48,7 @@ _MAX_ENTRIES = 1000
 
 class SwarmMemory(HardenedModel):
     """In-process swarm memory with namespace isolation, keyword search, SONA."""
+
     entries: list[SwarmMemoryEntry] = Field(default_factory=list)
     max_entries: int = Field(default=_MAX_ENTRIES, ge=1, le=100_000)
     sona_min_score: float = Field(default=0.7, ge=0.0, le=1.0)
@@ -71,7 +75,7 @@ class SwarmMemory(HardenedModel):
         score: float = 1.0,
         tags: list[str] | None = None,
         source_agent_id: str = "",
-        preserve_created_at: float | None = None,   # F-26B
+        preserve_created_at: float | None = None,  # F-26B
     ) -> SwarmMemoryEntry:
         """Add or replace a memory entry."""
         entry_kwargs: dict[str, Any] = {
@@ -86,10 +90,7 @@ class SwarmMemory(HardenedModel):
             entry_kwargs["created_at"] = preserve_created_at
         entry = SwarmMemoryEntry(**entry_kwargs)
         # Remove old entry with same (key, namespace)
-        self.entries = [
-            e for e in self.entries
-            if not (e.key == key and e.namespace == namespace)
-        ]
+        self.entries = [e for e in self.entries if not (e.key == key and e.namespace == namespace)]
         self.entries.append(entry)
         self._cap()
         self._rebuild_index()
@@ -230,6 +231,7 @@ class SwarmMemory(HardenedModel):
 
 
 # ── Vector adapter (unchanged contract) ────────────────────────────────────
+
 
 class VectorMemoryAdapter:
     """Optional HNSW/vector backend adapter."""

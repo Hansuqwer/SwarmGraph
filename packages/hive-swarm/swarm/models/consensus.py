@@ -14,6 +14,7 @@ F-11A: risk_score docstring clarifies it is "disagreement"
 F-11B: ConsensusResult gains voter_breakdown and dissenter_ids
 F-17C: every consensus failure path logs a history entry (handled in nodes/consensus.py)
 """
+
 from __future__ import annotations
 
 import ast
@@ -87,12 +88,14 @@ def _dedupe_by_agent(votes: list[AgentVote]) -> list[AgentVote]:
 
 # ── ConsensusResult ────────────────────────────────────────────────────────
 
+
 class ConsensusResult(FrozenModel):
     """Immutable output of a consensus round.
 
     F-11A: risk_score == disagreement (1.0 - agreement_fraction); 1.0 on failure.
     F-11B: voter_breakdown (canonical_key → count) and dissenter_ids exposed.
     """
+
     protocol: ConsensusProtocol
     action: str | None = None
     action_hash: str = ""
@@ -117,6 +120,7 @@ class ConsensusResult(FrozenModel):
 
 
 # ── Raft (F-21A: split-brain + follower-aware) ─────────────────────────────
+
 
 def raft_consensus(
     votes: list[AgentVote],
@@ -160,8 +164,7 @@ def raft_consensus(
             if followers:
                 winner_canon = canonicalize_action(winner.proposed_action)
                 f_agree = sum(
-                    1 for v in followers
-                    if canonicalize_action(v.proposed_action) == winner_canon
+                    1 for v in followers if canonicalize_action(v.proposed_action) == winner_canon
                 ) / len(followers)
                 # Average leader (1.0) + follower agreement
                 agreement = (1.0 + f_agree) / 2
@@ -172,8 +175,7 @@ def raft_consensus(
             breakdown = {k: len(b) for k, b in buckets.items()}
             winner_canon = canonicalize_action(winner.proposed_action)
             dissenters = [
-                v.agent_id for v in votes
-                if canonicalize_action(v.proposed_action) != winner_canon
+                v.agent_id for v in votes if canonicalize_action(v.proposed_action) != winner_canon
             ]
 
             return ConsensusResult(
@@ -191,6 +193,7 @@ def raft_consensus(
 
 
 # ── BFT (F-22A: textbook PBFT formula + n>=4 + dedupe) ─────────────────────
+
 
 def bft_consensus(
     votes: list[AgentVote],
@@ -222,8 +225,7 @@ def bft_consensus(
             vote_count=len(votes),
             failed=True,
             failure_reason=(
-                f"BFT requires >=4 unique voters to tolerate any Byzantine fault; "
-                f"got {len(votes)}"
+                f"BFT requires >=4 unique voters to tolerate any Byzantine fault; got {len(votes)}"
             ),
             risk_score=1.0,
         )
@@ -241,8 +243,7 @@ def bft_consensus(
             agreement = len(bucket) / len(votes)
             winner_canon = canonicalize_action(action)
             dissenters = [
-                v.agent_id for v in votes
-                if canonicalize_action(v.proposed_action) != winner_canon
+                v.agent_id for v in votes if canonicalize_action(v.proposed_action) != winner_canon
             ]
             return ConsensusResult(
                 protocol="bft",
@@ -274,6 +275,7 @@ def bft_consensus(
 
 
 # ── Gossip (F-23A: floor + min_voters; F-23B: count-based zero-conf) ──────
+
 
 def gossip_consensus(
     votes: list[AgentVote],
@@ -332,10 +334,7 @@ def gossip_consensus(
 
     best_canon = max(weighted, key=lambda k: weighted[k])
     best_action = _representative_action(buckets[best_canon])
-    dissenters = [
-        v.agent_id for v in votes
-        if canonicalize_action(v.proposed_action) != best_canon
-    ]
+    dissenters = [v.agent_id for v in votes if canonicalize_action(v.proposed_action) != best_canon]
     return ConsensusResult(
         protocol="gossip",
         action=best_action,
@@ -348,6 +347,7 @@ def gossip_consensus(
 
 
 # ── Majority (F-24A: first-proposer tie-break) ────────────────────────────
+
 
 def majority_consensus(
     votes: list[AgentVote],
@@ -369,9 +369,7 @@ def majority_consensus(
     buckets = _bucket_votes(votes)
 
     # F-24A: tie-break by earliest timestamp in the bucket
-    earliest_ts: dict[str, float] = {
-        k: min(v.timestamp for v in b) for k, b in buckets.items()
-    }
+    earliest_ts: dict[str, float] = {k: min(v.timestamp for v in b) for k, b in buckets.items()}
     breakdown = {k: len(b) for k, b in buckets.items()}
 
     ranked = sorted(
@@ -389,17 +387,12 @@ def majority_consensus(
             vote_count=len(votes),
             agreement_fraction=fraction,
             failed=True,
-            failure_reason=(
-                f"Best bucket got {fraction:.1%}, need >= {min_fraction:.0%}"
-            ),
+            failure_reason=(f"Best bucket got {fraction:.1%}, need >= {min_fraction:.0%}"),
             voter_breakdown=breakdown,
             risk_score=1.0,
         )
 
-    dissenters = [
-        v.agent_id for v in votes
-        if canonicalize_action(v.proposed_action) != best_canon
-    ]
+    dissenters = [v.agent_id for v in votes if canonicalize_action(v.proposed_action) != best_canon]
     return ConsensusResult(
         protocol="majority",
         action=best_action,
@@ -412,6 +405,7 @@ def majority_consensus(
 
 
 # ── Dispatch ───────────────────────────────────────────────────────────────
+
 
 def run_consensus(
     votes: list[AgentVote],
