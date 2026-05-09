@@ -1,6 +1,7 @@
 """Zhipu GLM adapter stub — requires ZHIPU_GLM_API_KEY."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

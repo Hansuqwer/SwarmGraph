@@ -65,7 +65,7 @@ class GatewayResponse(BaseModel):
     latency_ms: float | None = Field(default=None, ge=0.0)
 
     @model_validator(mode="after")
-    def _content_or_error(self) -> "GatewayResponse":
+    def _content_or_error(self) -> GatewayResponse:
         if self.content is None and self.error is None:
             raise ValueError("GatewayResponse must have either content or error")
         return self
@@ -97,7 +97,7 @@ class GatewayState(BaseModel):
     is_safe_to_proceed: bool = True
 
     @model_validator(mode="after")
-    def _cap_lists(self) -> "GatewayState":
+    def _cap_lists(self) -> GatewayState:
         if len(self.attempts) > _MAX_ATTEMPTS:
             self.attempts = self.attempts[-_MAX_ATTEMPTS:]
         if len(self.errors) > _MAX_ERRORS:
@@ -125,5 +125,5 @@ class GatewayState(BaseModel):
         return self.model_dump(mode="json")
 
     @classmethod
-    def from_json_dict(cls, data: dict[str, Any]) -> "GatewayState":
+    def from_json_dict(cls, data: dict[str, Any]) -> GatewayState:
         return cls.model_validate(data)

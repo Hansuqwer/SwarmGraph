@@ -2,7 +2,6 @@
 
 import pytest
 from pydantic import ValidationError
-
 from swarm.models.agent import AgentSpec, AgentVote, WorkerResult
 from swarm.models.config import SwarmConfig
 from swarm.models.task import SwarmTask

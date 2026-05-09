@@ -22,7 +22,8 @@ Test recipe (also shipped in tests/test_checkpointing_coverage.py):
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from .redaction import Redactor
 

@@ -1,6 +1,7 @@
 """Groq adapter — requires GROQ_API_KEY env var. OpenAI-compatible."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

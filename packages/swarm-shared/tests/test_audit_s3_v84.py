@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
-
 from swarm_shared.audit import GENESIS_PREV_HASH, AuditRecord, sign_record, verify_chain
 from swarm_shared.audit_backends import S3AuditBackend
-
 
 SECRET = b"test-hmac-secret-not-real"
 
@@ -80,7 +78,7 @@ def _record(seq: int, *, swarm_id: str = "s1", prev_hash: str = GENESIS_PREV_HAS
         payload={"i": seq},
         prev_hash=prev_hash,
         secret=SECRET,
-        timestamp=datetime(2026, 5, 8, tzinfo=timezone.utc).timestamp(),
+        timestamp=datetime(2026, 5, 8, tzinfo=UTC).timestamp(),
     )
 
 

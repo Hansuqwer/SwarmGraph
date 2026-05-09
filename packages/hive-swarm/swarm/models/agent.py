@@ -26,7 +26,7 @@ class TokenUsage(FrozenModel):
     finish_reason: str = Field(default="", max_length=64)
     provider_id: str = Field(default="", max_length=64)
     # v6
-    cost_usd: Optional[float] = Field(
+    cost_usd: float | None = Field(
         default=None,
         ge=0.0,
         description=(
@@ -82,7 +82,7 @@ class AgentState(HardenedModel):
     error_message: str = ""
 
     @model_validator(mode="after")
-    def _set_output_hash(self) -> "AgentState":
+    def _set_output_hash(self) -> AgentState:
         if self.output and not self.output_hash:
             self.output_hash = stable_hash(self.output)
         return self
@@ -160,7 +160,7 @@ class WorkerResult(FrozenModel):
     usage: TokenUsage | None = None
 
     @model_validator(mode="after")
-    def _validate_success_consistency(self) -> "WorkerResult":
+    def _validate_success_consistency(self) -> WorkerResult:
         if self.success and not self.output.strip():
             raise ValueError("Successful WorkerResult must have non-empty output")
         if not self.success and not self.error_message.strip():
@@ -168,7 +168,7 @@ class WorkerResult(FrozenModel):
         return self
 
     @model_validator(mode="after")
-    def _compute_output_hash(self) -> "WorkerResult":
+    def _compute_output_hash(self) -> WorkerResult:
         if self.output:
             object.__setattr__(self, "output_hash", stable_hash(self.output))
         return self

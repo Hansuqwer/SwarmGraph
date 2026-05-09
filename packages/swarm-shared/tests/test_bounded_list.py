@@ -2,7 +2,6 @@
 
 import pytest
 from pydantic import BaseModel, Field, field_validator
-
 from swarm_shared.bounded_list import CappedListConfig, bounded_list_validator, cap_list
 
 

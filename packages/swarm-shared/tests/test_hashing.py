@@ -1,7 +1,7 @@
 """Tests for swarm_shared.hashing."""
 
 import pytest
-from swarm_shared.hashing import stable_hash, full_sha256
+from swarm_shared.hashing import full_sha256, stable_hash
 
 
 def test_stable_hash_default_length_is_16():

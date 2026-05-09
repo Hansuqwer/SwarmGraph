@@ -8,7 +8,6 @@ from typing import Any
 
 from .quota.tracker import QuotaTracker
 
-
 DEFAULT_HISTORY_PATH = Path.home() / ".ai_provider_gateway" / "consensus_history.jsonl"
 
 

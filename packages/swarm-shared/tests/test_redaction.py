@@ -7,7 +7,6 @@ from swarm_shared.redaction import (
     redact_text,
 )
 
-
 OPENAI_KEY = "sk-" + "proj-" + "abcdef1234567890ABCDEF12345678"
 ANTHROPIC_KEY = "sk-" + "ant-api03-" + "abcdef1234567890ABCDEF12345678"
 AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"

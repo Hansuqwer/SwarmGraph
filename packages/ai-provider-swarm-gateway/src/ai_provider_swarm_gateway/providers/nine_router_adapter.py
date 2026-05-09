@@ -20,8 +20,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, Mapping, Optional
+from typing import Any, Optional
 
 # ── Defensive ABC import ──────────────────────────────────────────────────
 

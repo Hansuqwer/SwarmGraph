@@ -7,20 +7,19 @@ import time
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings, strategies as st
-
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from swarm_shared.audit import (
+    GENESIS_PREV_HASH,
     AuditChain,
     AuditChainBroken,
     AuditRecord,
-    GENESIS_PREV_HASH,
     append_jsonl,
     load_jsonl_chain,
     sign_record,
     verify_chain,
     verify_record,
 )
-
 
 SECRET = b"test-hmac-secret-not-real"
 ALT_SECRET = b"different-secret"
@@ -50,7 +49,7 @@ def _audit_inputs(draw, *, min_size: int = 3):
     kinds = draw(
         st.lists(st.sampled_from(_AUDIT_KINDS), min_size=len(payloads), max_size=len(payloads))
     )
-    return list(zip(kinds, payloads))
+    return list(zip(kinds, payloads, strict=False))
 
 
 def _build_chain_from_inputs(inputs) -> list[AuditRecord]:

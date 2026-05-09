@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from ai_provider_swarm_gateway.cli import _interactive_hitl_prompt
 
 

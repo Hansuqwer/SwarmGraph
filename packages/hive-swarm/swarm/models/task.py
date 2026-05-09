@@ -50,14 +50,14 @@ class SwarmTask(HardenedModel):
         return list(dict.fromkeys(v))
 
     @model_validator(mode="after")
-    def _no_self_dependency(self) -> "SwarmTask":
+    def _no_self_dependency(self) -> SwarmTask:
         # F-08A: real self-dep check (was missing)
         if self.task_id in self.depends_on:
             raise ValueError(f"task {self.task_id!r} cannot depend on itself")
         return self
 
     @model_validator(mode="after")
-    def _refresh_result_hash(self) -> "SwarmTask":
+    def _refresh_result_hash(self) -> SwarmTask:
         # F-08-T1: always recompute when result_summary present
         if self.result_summary:
             object.__setattr__(self, "result_hash", stable_hash(self.result_summary))
@@ -117,7 +117,7 @@ class QueenDirective(FrozenModel):
     issued_at: float = Field(default_factory=now_ts)
 
     @model_validator(mode="after")
-    def _task_must_be_assigned(self) -> "QueenDirective":
+    def _task_must_be_assigned(self) -> QueenDirective:
         if self.task.status not in ("assigned", "running", "pending"):
             raise ValueError(
                 f"QueenDirective task must be in an active status, got {self.task.status!r}"

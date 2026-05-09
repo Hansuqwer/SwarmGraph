@@ -29,7 +29,6 @@ from .agent import AgentVote
 from .base import FrozenModel
 from .types import ConsensusProtocol
 
-
 # ── Canonicalisation (F-17A) ───────────────────────────────────────────────
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -111,7 +110,7 @@ class ConsensusResult(FrozenModel):
     metadata: dict[str, Any] = Field(default_factory=dict, max_length=32)
 
     @model_validator(mode="after")
-    def _consistency(self) -> "ConsensusResult":
+    def _consistency(self) -> ConsensusResult:
         if self.failed and self.action is not None:
             raise ValueError("A failed ConsensusResult must not have an action")
         if not self.failed and self.action is None:
@@ -237,7 +236,7 @@ def bft_consensus(
     breakdown = {k: len(b) for k, b in buckets.items()}
 
     # Find a bucket meeting the threshold
-    for canon_key, bucket in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
+    for _canon_key, bucket in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
         if len(bucket) >= threshold:
             action = _representative_action(bucket)
             agreement = len(bucket) / len(votes)

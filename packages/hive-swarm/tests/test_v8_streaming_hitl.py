@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import pytest
-
 from swarm.llm.dispatch import (
     GatewayDispatcher,
     StreamChunk,
     StreamingHITLInterrupt,
 )
 from swarm.nodes.worker import _consume_stream_to_response
-
 
 # ── StreamingHITLInterrupt basic shape ──────────────────────────────────
 
@@ -58,8 +56,7 @@ class _FakeAdapter:
         return True
 
     def chat_stream(self, *, messages, max_tokens, temperature, model=None):
-        for c in self.chunks:
-            yield c
+        yield from self.chunks
 
     def chat(self, *, messages, max_tokens, temperature, model=None):
         return {"choices": [{"message": {"content": "non-stream"}, "finish_reason": "stop"}]}

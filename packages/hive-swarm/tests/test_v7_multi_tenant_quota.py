@@ -6,12 +6,10 @@ import json
 from pathlib import Path
 
 import pytest
-
 from ai_provider_swarm_gateway.quota.tracker import (
     QuotaTracker,
     _validate_tenant_id,
 )
-
 
 # ── Tenant id validation ────────────────────────────────────────────────
 
@@ -106,6 +104,7 @@ def test_two_tenants_isolated(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     # Recompute the default base after env change
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -130,6 +129,7 @@ def test_two_tenants_isolated(tmp_path: Path, monkeypatch):
 def test_list_tenants_returns_only_real_dirs(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -150,6 +150,7 @@ def test_single_tenant_default_unchanged(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("AI_PROVIDER_GATEWAY_TENANT", raising=False)
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -164,6 +165,7 @@ def test_single_tenant_default_unchanged(monkeypatch, tmp_path: Path):
 def test_reset_only_affects_one_tenant(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)

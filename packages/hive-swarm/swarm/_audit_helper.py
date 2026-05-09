@@ -23,13 +23,13 @@ import os
 from typing import Any
 
 from swarm_shared.audit import (
+    GENESIS_PREV_HASH,
     AuditChainBroken,
     AuditKind,
-    GENESIS_PREV_HASH,
+    AuditRecord,
     append_jsonl,
     sign_record,
 )
-from swarm_shared.audit import AuditRecord
 
 
 class AuditMisconfigured(RuntimeError):

@@ -1,6 +1,7 @@
 """DeepSeek adapter stub (OpenAI-compatible) — requires DEEPSEEK_API_KEY."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

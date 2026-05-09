@@ -50,5 +50,27 @@ jobs:
             packages/ai-provider-swarm-gateway/tests \
             --tb=short -q
 
+      - name: Coverage report
+        if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
+        run: |
+          uv run pytest \
+            packages/swarm-shared/tests \
+            packages/hive-swarm/tests \
+            packages/ai-provider-swarm-gateway/tests \
+            --cov=packages/swarm-shared/swarm_shared \
+            --cov=packages/hive-swarm/swarm \
+            --cov=packages/ai-provider-swarm-gateway/src/ai_provider_swarm_gateway \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term \
+            --tb=short -q
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+
       - name: Smoke test (stub mode)
         run: uv run python examples/01_smoke_stub_mode.py

@@ -1,7 +1,6 @@
 """F-04C / F-19A: HITL single-use guard test."""
 
 import pytest
-
 from swarm.models.config import SwarmConfig
 from swarm.models.consensus import ConsensusResult
 from swarm.models.state import SwarmState

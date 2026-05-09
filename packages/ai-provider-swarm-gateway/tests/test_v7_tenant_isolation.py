@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -21,6 +21,7 @@ def test_quota_increment_tenant_flag(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     # Reset the tracker module to pick up the new HOME
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -51,6 +52,7 @@ def test_quota_increment_tenant_flag(tmp_path: Path, monkeypatch):
 def test_quota_show_two_tenants_isolated(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -79,6 +81,7 @@ def test_quota_show_two_tenants_isolated(tmp_path: Path, monkeypatch):
 def test_quota_reset_tenant_isolated(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -109,6 +112,7 @@ def test_quota_reset_tenant_isolated(tmp_path: Path, monkeypatch):
 def test_tenants_list_empty_initially(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -122,6 +126,7 @@ def test_tenants_list_empty_initially(tmp_path: Path, monkeypatch):
 def test_tenants_list_after_create(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -163,6 +168,7 @@ def test_empty_quota_message_renders_with_brackets(tmp_path: Path, monkeypatch):
     appear in stdout (verbatim brackets), not be eaten as a style tag."""
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -177,6 +183,7 @@ def test_empty_quota_message_renders_with_brackets(tmp_path: Path, monkeypatch):
 def test_empty_quota_with_since_message_renders(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -189,7 +196,7 @@ def test_empty_quota_with_since_message_renders(tmp_path: Path, monkeypatch):
 
     fp = tracker_mod.QuotaTracker.tenant_storage_path("alice")
     data = json.loads(fp.read_text())
-    old = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat()
+    old = (datetime.now(tz=UTC) - timedelta(days=30)).isoformat()
     for k in data:
         data[k]["reset_at"] = old
     fp.write_text(json.dumps(data))

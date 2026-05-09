@@ -4,14 +4,12 @@ import json
 from pathlib import Path
 
 import pytest
-
 from swarm_shared.pricing import (
     DEFAULT_PRICING_TABLE,
     PricingEntry,
     PricingTable,
     estimate_cost,
 )
-
 
 # ── PricingEntry ─────────────────────────────────────────────────────────
 

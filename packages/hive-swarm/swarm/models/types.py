@@ -4,6 +4,7 @@ F-13C: _QUEEN_NODE_NAMES centralised here (was duplicated in factory.py + router
 """
 
 from __future__ import annotations
+
 from typing import Literal
 
 # --- Agent roles ---

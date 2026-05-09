@@ -5,14 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
+from pydantic import ValidationError
 from swarm.llm import dispatch as dispatch_mod
 from swarm.models.agent import AgentState, TokenUsage, WorkerResult
 from swarm.models.config import SwarmConfig
 from swarm.models.task import QueenDirective, SwarmTask
 from swarm.nodes.queen import _llm_settings_from_config
 from swarm.nodes.worker import _to_token_usage, worker_node
-
 
 # ── TokenUsage model ─────────────────────────────────────────────────────
 
@@ -25,7 +24,7 @@ def test_token_usage_defaults():
 
 
 def test_token_usage_rejects_negative():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         TokenUsage(input_tokens=-1)
 
 

@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from swarm_shared.pricing import DEFAULT_PRICING_TABLE, PricingTable
 

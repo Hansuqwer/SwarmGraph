@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from swarm_shared.atomic_write import atomic_write_json, atomic_write_text
 
 

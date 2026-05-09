@@ -9,10 +9,10 @@ Covered:
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 
 import pytest
-
 
 # ── F-29-CORR1: reset_usage is authoritative ────────────────────────────
 
@@ -22,6 +22,7 @@ def _make_tracker(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("AI_PROVIDER_GATEWAY_TENANT", raising=False)
     import importlib
+
     from ai_provider_swarm_gateway.quota import tracker as tracker_mod
 
     importlib.reload(tracker_mod)
@@ -134,7 +135,7 @@ def test_reset_usage_clears_reset_at(tmp_path: Path, monkeypatch):
     tracker_mod = _make_tracker(tmp_path, monkeypatch)
     t = tracker_mod.QuotaTracker.for_tenant("alice")
     t.increment("openai", requests=10)
-    t.set_reset_time("openai", datetime.now(tz=timezone.utc) + timedelta(hours=1))
+    t.set_reset_time("openai", datetime.now(tz=UTC) + timedelta(hours=1))
 
     t.reset_usage("openai")
 
@@ -149,8 +150,8 @@ def test_reset_usage_clears_reset_at(tmp_path: Path, monkeypatch):
 def test_cli_quota_reset_zeros_actual_disk_state(tmp_path: Path, monkeypatch):
     """End-to-end: invoke the CLI 'quota reset' command, then read on disk."""
     tracker_mod = _make_tracker(tmp_path, monkeypatch)
-    from typer.testing import CliRunner
     from ai_provider_swarm_gateway.cli import app
+    from typer.testing import CliRunner
 
     runner = CliRunner()
 

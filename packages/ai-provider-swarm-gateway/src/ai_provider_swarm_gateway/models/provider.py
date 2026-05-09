@@ -59,7 +59,7 @@ class ProviderQuota(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _unknown_limits_are_not_free(self) -> "ProviderQuota":
+    def _unknown_limits_are_not_free(self) -> ProviderQuota:
         """
         POLICY: If confidence is 'unknown', we cannot claim any specific free quota.
         This does NOT raise — it adds a warning note instead so routing can react.

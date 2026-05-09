@@ -3,7 +3,6 @@
 from typing import Any
 
 import pytest
-
 from swarm.llm import dispatch as dispatch_mod
 from swarm.llm.dispatch import (
     GatewayDispatcher,
@@ -17,7 +16,6 @@ from swarm.models.config import SwarmConfig
 from swarm.models.task import QueenDirective, SwarmTask
 from swarm.nodes.queen import _llm_settings_from_config
 from swarm.nodes.worker import worker_node
-
 
 # ── StreamChunk shape ────────────────────────────────────────────────────
 
@@ -122,8 +120,7 @@ class _FakeStreamingAdapter:
 
     def chat_stream(self, *, messages, max_tokens, temperature, model=None):
         self.calls.append({"method": "chat_stream", "model": model})
-        for c in self.chunks:
-            yield c
+        yield from self.chunks
 
 
 def test_gateway_dispatch_stream_collects_chunks():

@@ -141,6 +141,8 @@ make smoke        # python examples/01_smoke_stub_mode.py
 make serve-docs   # mkdocs serve (http://localhost:8000)
 ```
 
+CI publishes `coverage.xml` as an artifact from the Python 3.11 Ubuntu job.
+
 ---
 
 ## Contributing

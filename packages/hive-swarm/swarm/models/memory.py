@@ -14,13 +14,13 @@ from __future__ import annotations
 import json
 import time
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 from .base import FrozenModel, HardenedModel, stable_hash
-
 
 # ── SwarmMemoryEntry ───────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ class SwarmMemory(HardenedModel):
     _index: dict[str, dict[str, SwarmMemoryEntry]] = PrivateAttr(default_factory=dict)
 
     @model_validator(mode="after")
-    def _initial_cap_and_index(self) -> "SwarmMemory":
+    def _initial_cap_and_index(self) -> SwarmMemory:
         # F-12-T1: enforce cap on construction (was only at store-time)
         self._cap()
         # F-12-LG1: rebuild index after capping

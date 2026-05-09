@@ -1,6 +1,7 @@
 """Anthropic adapter stub — requires ANTHROPIC_API_KEY env var."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

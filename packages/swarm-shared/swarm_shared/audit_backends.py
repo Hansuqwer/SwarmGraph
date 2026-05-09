@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Protocol
 
 from .audit import AuditRecord
@@ -63,7 +63,7 @@ class S3AuditBackend:
         return self._client
 
     def _key_for_record(self, record: AuditRecord) -> str:
-        day = datetime.fromtimestamp(record.timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+        day = datetime.fromtimestamp(record.timestamp, tz=UTC).strftime("%Y-%m-%d")
         return f"{self.prefix}/{day}/{record.swarm_id}.jsonl"
 
     def _is_not_found(self, error: Exception) -> bool:

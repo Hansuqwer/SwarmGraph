@@ -27,7 +27,7 @@ class QuotaUsage(BaseModel):
     reset_at: datetime | None = None
 
     @model_validator(mode="after")
-    def _no_negative(self) -> "QuotaUsage":
+    def _no_negative(self) -> QuotaUsage:
         if self.used_requests < 0 or self.used_tokens < 0:
             raise ValueError("quota usage cannot be negative")
         return self
@@ -45,7 +45,7 @@ class QuotaStatus(BaseModel):
     warning: str | None = None
 
     @model_validator(mode="after")
-    def _flag_unknown(self) -> "QuotaStatus":
+    def _flag_unknown(self) -> QuotaStatus:
         if not self.limit.is_known:
             object.__setattr__(self, "is_unknown", True)
             object.__setattr__(

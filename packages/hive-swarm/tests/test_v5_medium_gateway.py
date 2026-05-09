@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from swarm.llm import dispatch as dispatch_mod
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState

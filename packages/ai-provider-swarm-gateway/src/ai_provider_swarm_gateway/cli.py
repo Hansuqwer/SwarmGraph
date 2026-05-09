@@ -20,7 +20,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -29,9 +29,9 @@ import typer
 
 try:
     from rich.console import Console
+    from rich.markup import escape as _rich_escape
     from rich.panel import Panel
     from rich.table import Table
-    from rich.markup import escape as _rich_escape
 
     _HAS_RICH = True
 except ImportError:  # pragma: no cover
@@ -79,7 +79,7 @@ _console = Console() if _HAS_RICH else None
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 
-def _resolve_storage_path(custom: Optional[Path], tenant: Optional[str] = None) -> Optional[Path]:
+def _resolve_storage_path(custom: Path | None, tenant: str | None = None) -> Path | None:
     """Return the storage path; None means 'let QuotaTracker decide from tenant_id or env'."""
     if custom is not None:
         return custom
@@ -90,8 +90,8 @@ def _resolve_storage_path(custom: Optional[Path], tenant: Optional[str] = None) 
 
 
 def _build_tracker(
-    storage: Optional[Path],
-    tenant: Optional[str],
+    storage: Path | None,
+    tenant: str | None,
 ) -> QuotaTracker:
     """Build a QuotaTracker honouring --storage / --tenant / env precedence."""
     sp = _resolve_storage_path(storage, tenant)
@@ -202,23 +202,23 @@ def version() -> None:
 
 @quota_app.command("show")
 def quota_show(
-    provider: Optional[str] = typer.Option(None, "--provider", "-p"),
+    provider: str | None = typer.Option(None, "--provider", "-p"),
     window: str = typer.Option("daily", "--window", "-w"),
-    storage: Optional[Path] = typer.Option(None, "--storage"),
-    tenant: Optional[str] = typer.Option(
+    storage: Path | None = typer.Option(None, "--storage"),
+    tenant: str | None = typer.Option(
         None, "--tenant", help="v7: tenant id for multi-tenant isolation"
     ),
-    since: Optional[str] = typer.Option(None, "--since"),
+    since: str | None = typer.Option(None, "--since"),
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
     """Show current quota usage."""
     tracker = _build_tracker(storage, tenant)
 
-    cutoff: Optional[datetime] = None
+    cutoff: datetime | None = None
     if since:
         try:
             seconds = _parse_duration_to_seconds(since)
-            cutoff = datetime.now(tz=timezone.utc) - timedelta(seconds=seconds)
+            cutoff = datetime.now(tz=UTC) - timedelta(seconds=seconds)
         except ValueError as e:
             _err(f"❌ {e}")
             raise typer.Exit(2)
@@ -246,7 +246,7 @@ def quota_show(
                 filtered.append((pid, win, u))
                 continue
             if ra.tzinfo is None:
-                ra = ra.replace(tzinfo=timezone.utc)
+                ra = ra.replace(tzinfo=UTC)
             if ra >= cutoff:
                 filtered.append((pid, win, u))
         rows = filtered
@@ -308,8 +308,8 @@ def quota_increment(
     requests: int = typer.Option(0, "--requests", "-r", min=0),
     tokens: int = typer.Option(0, "--tokens", "-t", min=0),
     window: str = typer.Option("daily", "--window", "-w"),
-    storage: Optional[Path] = typer.Option(None, "--storage"),
-    tenant: Optional[str] = typer.Option(None, "--tenant"),
+    storage: Path | None = typer.Option(None, "--storage"),
+    tenant: str | None = typer.Option(None, "--tenant"),
 ) -> None:
     if requests == 0 and tokens == 0:
         _err("Nothing to increment: pass --requests and/or --tokens.")
@@ -326,8 +326,8 @@ def quota_increment(
 def quota_reset(
     provider: str = typer.Option(..., "--provider", "-p"),
     window: str = typer.Option("daily", "--window", "-w"),
-    storage: Optional[Path] = typer.Option(None, "--storage"),
-    tenant: Optional[str] = typer.Option(None, "--tenant"),
+    storage: Path | None = typer.Option(None, "--storage"),
+    tenant: str | None = typer.Option(None, "--tenant"),
     confirm: bool = typer.Option(False, "--yes", "-y"),
 ) -> None:
     if not confirm:
@@ -336,7 +336,7 @@ def quota_reset(
     if hasattr(tracker, "reset_usage"):
         tracker.reset_usage(provider, window)
     else:
-        tracker.set_reset_time(provider, datetime.now(tz=timezone.utc), window)
+        tracker.set_reset_time(provider, datetime.now(tz=UTC), window)
     after = tracker.get_usage(provider, window)
     _print(f"✅ {provider} ({window}) reset → req={after.used_requests}, tok={after.used_tokens}")
 
@@ -346,10 +346,10 @@ def quota_set_reset(
     provider: str = typer.Option(..., "--provider", "-p"),
     in_hours: float = typer.Option(24.0, "--in-hours"),
     window: str = typer.Option("daily", "--window", "-w"),
-    storage: Optional[Path] = typer.Option(None, "--storage"),
-    tenant: Optional[str] = typer.Option(None, "--tenant"),
+    storage: Path | None = typer.Option(None, "--storage"),
+    tenant: str | None = typer.Option(None, "--tenant"),
 ) -> None:
-    when = datetime.now(tz=timezone.utc) + timedelta(hours=in_hours)
+    when = datetime.now(tz=UTC) + timedelta(hours=in_hours)
     tracker = _build_tracker(storage, tenant)
     tracker.set_reset_time(provider, when, window)
     _print(f"✅ {provider} ({window}) reset scheduled for {when.isoformat()}")
@@ -406,8 +406,8 @@ def pool_add(
     provider: str = typer.Argument(...),
     account_id: str = typer.Argument(...),
     secret: str = typer.Option(..., "--secret", prompt=True, hide_input=True),
-    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
-    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+    vault_path: Path | None = typer.Option(None, "--vault-path"),
+    key_path: Path | None = typer.Option(None, "--key-path"),
 ) -> None:
     """Add or update one encrypted account secret. Secret is never printed."""
     try:
@@ -426,8 +426,8 @@ def pool_add(
 
 @pool_app.command("list")
 def pool_list(
-    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
-    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+    vault_path: Path | None = typer.Option(None, "--vault-path"),
+    key_path: Path | None = typer.Option(None, "--key-path"),
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
     """List provider/account IDs in the encrypted vault, never secrets."""
@@ -456,7 +456,7 @@ def pool_list(
 def pool_sync(
     bucket: str = typer.Option(..., "--bucket", "-b"),
     key: str = typer.Option("secrets.json.enc", "--key", "-k"),
-    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
+    vault_path: Path | None = typer.Option(None, "--vault-path"),
     push: bool = typer.Option(False, "--push"),
     pull: bool = typer.Option(False, "--pull"),
 ) -> None:
@@ -467,6 +467,7 @@ def pool_sync(
     try:
         import boto3  # type: ignore[import-not-found]
         from boto3.s3.transfer import TransferConfig  # type: ignore[import-not-found]
+
         from .quota.pool import DEFAULT_VAULT_PATH
 
         path = vault_path or DEFAULT_VAULT_PATH
@@ -502,8 +503,8 @@ def auth_import_browser(
     provider: str = typer.Argument(..., help="Provider: chatgpt, qwen, or kimi."),
     browser: str = typer.Option("chrome", "--browser", help="Browser to inspect."),
     account_id: str = typer.Option("browser_auto", "--account-id"),
-    vault_path: Optional[Path] = typer.Option(None, "--vault-path"),
-    key_path: Optional[Path] = typer.Option(None, "--key-path"),
+    vault_path: Path | None = typer.Option(None, "--vault-path"),
+    key_path: Path | None = typer.Option(None, "--key-path"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Find token but do not store it."),
 ) -> None:
     """Import a local browser session token into the encrypted vault.
@@ -556,7 +557,7 @@ def auth_import_browser(
 # ── providers subcommands (unchanged from v6) ────────────────────────────
 
 
-def _try_load_registry() -> Optional[list[dict]]:
+def _try_load_registry() -> list[dict] | None:
     here = Path(__file__).resolve().parent
     candidates = [here / "registry" / "providers.yaml", here / "registry" / "providers.json"]
     raw: Any = None
@@ -595,7 +596,7 @@ def _try_load_registry() -> Optional[list[dict]]:
 @providers_app.command("list")
 def providers_list(
     json_output: bool = typer.Option(False, "--json"),
-    capability: Optional[str] = typer.Option(None, "--capability", "-c"),
+    capability: str | None = typer.Option(None, "--capability", "-c"),
     free_only: bool = typer.Option(False, "--free-only"),
 ) -> None:
     registry = _try_load_registry()
@@ -653,8 +654,8 @@ _MISSING_GATEWAY_MSG = (
 
 
 def _import_gateway_pieces():
-    from .models.state import GatewayState  # type: ignore
     from .graph.builder import build_gateway_graph  # type: ignore
+    from .models.state import GatewayState  # type: ignore
 
     try:
         from .models.state import RoutingDecision  # type: ignore
@@ -693,9 +694,9 @@ def _extract_field(state, *names, default=None):
 @app.command("route")
 def route(
     prompt: str = typer.Option(..., "--prompt"),
-    capability: Optional[str] = typer.Option(None, "--capability", "-c"),
-    preferred: Optional[str] = typer.Option(None, "--preferred"),
-    thread_id: Optional[str] = typer.Option(None, "--thread-id"),
+    capability: str | None = typer.Option(None, "--capability", "-c"),
+    preferred: str | None = typer.Option(None, "--preferred"),
+    thread_id: str | None = typer.Option(None, "--thread-id"),
     allow_unknown_quota: bool = typer.Option(False, "--allow-unknown-quota"),
     json_output: bool = typer.Option(False, "--json"),
     show_audit: bool = typer.Option(False, "--show-audit"),
@@ -916,17 +917,17 @@ def audit_verify(
         help="Env var holding the HMAC secret used to sign the log.",
     ),
     json_output: bool = typer.Option(False, "--json"),
-    expected_head_hash: Optional[str] = typer.Option(
+    expected_head_hash: str | None = typer.Option(
         None,
         "--expected-head-hash",
         help="Expected final audit-chain head hash.",
     ),
-    expected_count: Optional[int] = typer.Option(
+    expected_count: int | None = typer.Option(
         None,
         "--expected-count",
         help="Expected number of audit records.",
     ),
-    swarm_id: Optional[str] = typer.Option(
+    swarm_id: str | None = typer.Option(
         None,
         "--swarm-id",
         help="Swarm ID required when verifying s3:// audit logs.",
@@ -1100,12 +1101,12 @@ def audit_restore(
 
 @app.command("dashboard")
 def dashboard(
-    history_path: Optional[Path] = typer.Option(
+    history_path: Path | None = typer.Option(
         None,
         "--history-path",
         help="Path to consensus_history.jsonl.",
     ),
-    storage: Optional[Path] = typer.Option(
+    storage: Path | None = typer.Option(
         None,
         "--storage",
         help="Quota usage JSON path.",
@@ -1269,12 +1270,12 @@ def swarm(
     max_agents: int = typer.Option(5, "--max-agents", min=1, max=100),
     backend: str = typer.Option("stub", "--backend"),
     provider: str = typer.Option("9router", "--provider"),
-    model: Optional[str] = typer.Option(None, "--model"),
+    model: str | None = typer.Option(None, "--model"),
     max_tokens: int = typer.Option(512, "--max-tokens", min=1),
     temperature: float = typer.Option(0.0, "--temperature", min=0.0, max=2.0),
     sona: bool = typer.Option(True, "--sona/--no-sona"),
     auto_approve: bool = typer.Option(True, "--auto-approve/--no-auto-approve"),
-    thread_id: Optional[str] = typer.Option(None, "--thread-id"),
+    thread_id: str | None = typer.Option(None, "--thread-id"),
     json_output: bool = typer.Option(False, "--json"),
     show_workers: bool = typer.Option(False, "--show-workers"),
     anti_drift_mode: str = typer.Option("keyword", "--anti-drift"),
@@ -1286,7 +1287,7 @@ def swarm(
         "--interactive/--no-interactive",
         help="v7: prompt operator on HITL approval; auto-detects TTY when --interactive omitted.",
     ),
-    tenant: Optional[str] = typer.Option(
+    tenant: str | None = typer.Option(
         None,
         "--tenant",
         help="v7: tenant id for quota isolation (env: AI_PROVIDER_GATEWAY_TENANT).",

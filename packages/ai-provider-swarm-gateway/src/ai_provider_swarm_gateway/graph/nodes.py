@@ -5,7 +5,7 @@ Each node is a pure function: dict -> dict (GatewayState serialized).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from ..consensus.strategies import (
@@ -25,7 +25,6 @@ from ..providers.mock_adapter import MockAdapter
 from ..quota.tracker import QuotaTracker
 from ..registry.loader import load_provider_registry
 
-
 # ── Shared resources (initialized once per import) ───────────────────────────
 
 _registry = None
@@ -43,17 +42,17 @@ def _get_registry():
 
 def _get_adapter(provider_id: str) -> ProviderAdapter:
     """Return the correct adapter for a provider_id. Falls back to mock."""
-    from ..providers.openai_adapter import OpenAIAdapter
     from ..providers.anthropic_adapter import AnthropicAdapter
-    from ..providers.google_adapter import GoogleAdapter
-    from ..providers.groq_adapter import GroqAdapter
-    from ..providers.grok_adapter import GrokAdapter
     from ..providers.deepseek_adapter import DeepSeekAdapter
-    from ..providers.qwen_adapter import QwenAdapter
     from ..providers.glm_adapter import GLMAdapter
+    from ..providers.google_adapter import GoogleAdapter
+    from ..providers.grok_adapter import GrokAdapter
+    from ..providers.groq_adapter import GroqAdapter
     from ..providers.kimi_adapter import KimiAdapter
-    from ..providers.openrouter_adapter import OpenRouterAdapter
     from ..providers.nine_router_adapter import NineRouterAdapter
+    from ..providers.openai_adapter import OpenAIAdapter
+    from ..providers.openrouter_adapter import OpenRouterAdapter
+    from ..providers.qwen_adapter import QwenAdapter
 
     adapters: dict[str, ProviderAdapter] = {
         "openai": OpenAIAdapter(),
@@ -339,7 +338,7 @@ def provider_call_node(state: dict[str, Any]) -> dict[str, Any]:
     attempt = ProviderAttempt(
         provider_id=provider_id,
         model_id=model_id,
-        started_at=datetime.now(tz=timezone.utc),
+        started_at=datetime.now(tz=UTC),
     )
 
     s.log(f"provider_call_node: calling {provider_id}")
@@ -347,7 +346,7 @@ def provider_call_node(state: dict[str, Any]) -> dict[str, Any]:
 
     attempt.success = response.error is None
     attempt.error = response.error
-    attempt.finished_at = datetime.now(tz=timezone.utc)
+    attempt.finished_at = datetime.now(tz=UTC)
     attempt.tokens_used = response.tokens_used
 
     s.attempts = s.attempts + [attempt]

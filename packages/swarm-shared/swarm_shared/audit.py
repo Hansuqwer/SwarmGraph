@@ -44,8 +44,9 @@ import hashlib
 import hmac
 import json
 import time
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -310,7 +311,7 @@ def load_jsonl_chain(path: Path) -> list[AuditRecord]:
     knows the file is corrupt, not just tampered with).
     """
     records: list[AuditRecord] = []
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for lineno, line in enumerate(fh, start=1):
             line = line.strip()
             if not line:

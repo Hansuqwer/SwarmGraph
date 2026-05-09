@@ -6,15 +6,13 @@ import json
 from pathlib import Path
 
 import pytest
-
 from swarm_shared.audit import (
+    GENESIS_PREV_HASH,
     AuditChainBroken,
     AuditRecord,
-    GENESIS_PREV_HASH,
     load_jsonl_chain,
     verify_chain,
 )
-
 
 SECRET_VALUE = "test-hmac-secret-32bytes-of-entropy-here-please"
 

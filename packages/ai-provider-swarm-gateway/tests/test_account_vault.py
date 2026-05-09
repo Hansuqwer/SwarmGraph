@@ -1,5 +1,4 @@
 import pytest
-
 from ai_provider_swarm_gateway.quota.pool import SecretStore, VaultError, create_vault_key
 
 

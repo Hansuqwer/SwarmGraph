@@ -25,7 +25,6 @@ from pydantic import Field, field_validator, model_validator
 from .base import FrozenModel
 from .types import ConsensusProtocol, SwarmStrategy, SwarmTopology
 
-
 LLMBackend = Literal["stub", "gateway"]
 AntiDriftMode = Literal["off", "keyword", "embedding"]
 StreamingHITLAction = Literal["abort", "continue", "accept_partial"]
@@ -245,7 +244,7 @@ class SwarmConfig(FrozenModel):
         return v
 
     @model_validator(mode="after")
-    def _tiers_must_be_ordered(self) -> "SwarmConfig":
+    def _tiers_must_be_ordered(self) -> SwarmConfig:
         if self.tier1_threshold >= self.tier2_threshold:
             raise ValueError(
                 f"tier1_threshold ({self.tier1_threshold}) must be "
@@ -254,13 +253,13 @@ class SwarmConfig(FrozenModel):
         return self
 
     @model_validator(mode="after")
-    def _bft_quorum_reasonable(self) -> "SwarmConfig":
+    def _bft_quorum_reasonable(self) -> SwarmConfig:
         if self.consensus_protocol == "bft" and self.bft_quorum_fraction == 1.0:
             raise ValueError("bft_quorum_fraction=1.0 defeats fault tolerance; use < 1.0 for BFT")
         return self
 
     @model_validator(mode="after")
-    def _audit_kinds_known(self) -> "SwarmConfig":
+    def _audit_kinds_known(self) -> SwarmConfig:
         valid = {
             "consensus_result",
             "approval_decision",

@@ -1,14 +1,12 @@
 from dataclasses import dataclass
 
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.auth_browser import (
     BrowserAuthError,
     extract_browser_session_token,
 )
 from ai_provider_swarm_gateway.cli import app
 from ai_provider_swarm_gateway.quota.pool import SecretStore, create_vault_key
-
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -56,8 +54,8 @@ def test_extract_browser_session_token_rejects_unknown_provider():
 
 
 def test_auth_import_browser_dry_run_never_prints_token(monkeypatch):
-    from ai_provider_swarm_gateway.auth_browser import BrowserSessionToken
     import ai_provider_swarm_gateway.auth_browser as auth_mod
+    from ai_provider_swarm_gateway.auth_browser import BrowserSessionToken
 
     def fake_extract(*args, **kwargs):
         return BrowserSessionToken("openai", "acct", "secret-token", "chrome", "cookie")
@@ -72,8 +70,8 @@ def test_auth_import_browser_dry_run_never_prints_token(monkeypatch):
 
 
 def test_auth_import_browser_stores_in_vault(monkeypatch, tmp_path):
-    from ai_provider_swarm_gateway.auth_browser import BrowserSessionToken
     import ai_provider_swarm_gateway.auth_browser as auth_mod
+    from ai_provider_swarm_gateway.auth_browser import BrowserSessionToken
 
     key_path = tmp_path / "vault.key"
     create_vault_key(key_path)

@@ -27,8 +27,8 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Iterable, Optional, Protocol
-
+from collections.abc import Iterable
+from typing import Any, Optional, Protocol
 
 # ── Protocol ─────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ class GatewayEmbedder:
         self,
         provider_id: str = "openai",
         model_id: str = "",
-        adapter_factory: Optional[Any] = None,
+        adapter_factory: Any | None = None,
     ) -> None:
         self.provider_id = provider_id
         self.model_id = model_id
@@ -333,7 +333,7 @@ class SentenceTransformerEmbedder:
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0.0 or norm_b == 0.0:

@@ -50,7 +50,7 @@ class PricingTable:
 
     entries: dict[str, PricingEntry] = field(default_factory=dict)
 
-    def lookup(self, model_id: str) -> Optional[PricingEntry]:
+    def lookup(self, model_id: str) -> PricingEntry | None:
         if not model_id:
             return None
         # 1. exact
@@ -73,7 +73,7 @@ class PricingTable:
         model_id: str,
         input_tokens: int,
         output_tokens: int,
-    ) -> Optional[float]:
+    ) -> float | None:
         entry = self.lookup(model_id)
         if entry is None:
             return None
@@ -85,7 +85,7 @@ class PricingTable:
         return round(cost, 6)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PricingTable":
+    def from_dict(cls, data: dict[str, Any]) -> PricingTable:
         entries = {}
         for k, v in (data.get("entries") or data).items():
             if isinstance(v, dict):
@@ -98,7 +98,7 @@ class PricingTable:
         return cls(entries=entries)
 
     @classmethod
-    def from_json_file(cls, path: Path) -> "PricingTable":
+    def from_json_file(cls, path: Path) -> PricingTable:
         return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
@@ -167,8 +167,8 @@ def estimate_cost(
     model_id: str,
     input_tokens: int,
     output_tokens: int,
-    table: Optional[PricingTable] = None,
-) -> Optional[float]:
+    table: PricingTable | None = None,
+) -> float | None:
     """Convenience wrapper around the default table."""
     return (table or DEFAULT_PRICING_TABLE).estimate_cost(model_id, input_tokens, output_tokens)
 

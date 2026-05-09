@@ -24,7 +24,6 @@ from swarm_shared.redaction import Redactor
 
 from ..models.state import SwarmCheckpoint, SwarmState
 
-
 # ── In-process store ──────────────────────────────────────────────────────
 
 

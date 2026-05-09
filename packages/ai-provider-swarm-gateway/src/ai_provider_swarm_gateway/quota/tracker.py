@@ -21,15 +21,15 @@ import json
 import os
 import re
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 from swarm_shared.atomic_write import atomic_write_json
 
 from ..models.quota import QuotaUsage
-
 
 _DEFAULT_BASE = Path.home() / ".ai_provider_gateway"
 _DEFAULT_SINGLE_TENANT = _DEFAULT_BASE / "usage.json"
@@ -115,7 +115,7 @@ class QuotaTracker:
         return _DEFAULT_BASE / _TENANTS_SUBDIR / tenant_id / "usage.json"
 
     @classmethod
-    def for_tenant(cls, tenant_id: str) -> "QuotaTracker":
+    def for_tenant(cls, tenant_id: str) -> QuotaTracker:
         """Factory: construct a tenant-isolated tracker."""
         return cls(tenant_id=tenant_id)
 
@@ -285,8 +285,8 @@ class QuotaTracker:
         try:
             reset_at = datetime.fromisoformat(reset_at_str)
             if reset_at.tzinfo is None:
-                reset_at = reset_at.replace(tzinfo=timezone.utc)
-            now = datetime.now(tz=timezone.utc)
+                reset_at = reset_at.replace(tzinfo=UTC)
+            now = datetime.now(tz=UTC)
             if now >= reset_at:
                 key = f"{provider_id}:{window}"
                 if self._data is None:

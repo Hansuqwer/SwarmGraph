@@ -1,10 +1,8 @@
 import json
 
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
 from ai_provider_swarm_gateway.quota.pool import SecretStore, create_vault_key
-
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

@@ -5,9 +5,8 @@ import re
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

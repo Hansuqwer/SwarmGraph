@@ -1,13 +1,12 @@
 """Tests for v6 CLI ergonomics: --since filter + canonized fixes + --stream + cost rollup."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import _parse_duration_to_seconds, app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -91,7 +90,7 @@ def test_quota_show_since_filter_excludes_old(tmp_path: Path):
     )
     # Manually edit usage.json to put reset_at far in the past
     data = json.loads(fp.read_text())
-    old_time = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat()
+    old_time = (datetime.now(tz=UTC) - timedelta(days=30)).isoformat()
     for k in data:
         data[k]["reset_at"] = old_time
     fp.write_text(json.dumps(data))

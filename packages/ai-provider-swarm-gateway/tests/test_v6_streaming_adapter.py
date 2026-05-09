@@ -1,13 +1,11 @@
 """Tests for NineRouterAdapter.chat_stream — no live network."""
 
 import pytest
-
 from ai_provider_swarm_gateway.providers.nine_router_adapter import (
     NineRouterAdapter,
     _parse_sse_data_line,
     _stream_event_to_chunk,
 )
-
 
 # ── _parse_sse_data_line ─────────────────────────────────────────────────
 
@@ -83,8 +81,7 @@ class _FakeStreamingHttp:
 
     def post_json_stream(self, url, payload, *, api_key, timeout):
         self.calls.append({"url": url, "payload": payload, "api_key": api_key})
-        for line in self.lines:
-            yield line
+        yield from self.lines
 
 
 def test_chat_stream_yields_chunks():

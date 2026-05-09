@@ -1,6 +1,7 @@
 """Qwen/Alibaba Cloud adapter stub — requires QWEN_API_KEY."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

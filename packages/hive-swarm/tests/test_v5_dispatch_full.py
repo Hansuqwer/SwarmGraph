@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from swarm.llm.dispatch import (
     GatewayDispatcher,
     StubDispatcher,
@@ -16,7 +15,6 @@ from swarm.llm.dispatch import (
     build_dispatcher,
     resolve_llm_settings,
 )
-
 
 # ── WorkerLLMResponse contract ───────────────────────────────────────────
 

@@ -4,11 +4,9 @@ import builtins
 import json
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
 from ai_provider_swarm_gateway.dashboard import build_agreement_plot, load_consensus_history
-
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

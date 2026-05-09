@@ -10,7 +10,6 @@ import os
 from typing import Any
 
 import pytest
-
 from swarm.graphs.factory import _merge_worker_results
 from swarm.llm.dispatch import (
     DEFAULT_SETTINGS,
@@ -21,7 +20,6 @@ from swarm.llm.embeddings import HashEmbedder, NullEmbedder
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState
 from swarm.nodes.queen import _llm_settings_from_config
-
 
 # ── F-13A-CORR1: dedupe-merge reducer for worker_results ────────────────
 

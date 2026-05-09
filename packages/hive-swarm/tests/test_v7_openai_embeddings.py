@@ -6,15 +6,13 @@ import json
 import os
 
 import pytest
-
 from swarm.llm.embeddings import (
+    _OPENAI_KEY_ENV_ALIASES,
     HashEmbedder,
     NullEmbedder,
     OpenAIEmbeddingAdapter,
-    _OPENAI_KEY_ENV_ALIASES,
     default_embedder_from_env,
 )
-
 
 # ── Fake HTTP client ─────────────────────────────────────────────────────
 

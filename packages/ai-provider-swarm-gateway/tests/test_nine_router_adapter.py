@@ -7,10 +7,10 @@ _HttpClient passed into the adapter constructor.
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
-
 from ai_provider_swarm_gateway.providers.nine_router_adapter import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
@@ -20,7 +20,6 @@ from ai_provider_swarm_gateway.providers.nine_router_adapter import (
     _parse_quirky_body,
     _resolve_api_key,
 )
-
 
 # ── Fake HTTP transport ──────────────────────────────────────────────────
 

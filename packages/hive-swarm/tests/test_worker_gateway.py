@@ -11,7 +11,6 @@ import json
 from typing import Any
 
 import pytest
-
 from swarm.llm import dispatch as dispatch_mod
 from swarm.models.agent import AgentState, WorkerResult
 from swarm.models.config import SwarmConfig
@@ -19,7 +18,6 @@ from swarm.models.state import SwarmState
 from swarm.models.task import QueenDirective, SwarmTask
 from swarm.nodes.queen import _llm_settings_from_config, queen_node
 from swarm.nodes.worker import _estimate_confidence, collect_results_node, worker_node
-
 
 # ── Fake adapter wired into the gateway path ─────────────────────────────
 

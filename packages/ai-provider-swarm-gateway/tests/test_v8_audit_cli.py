@@ -6,11 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
 from swarm_shared.audit import AuditChain, AuditRecord
-
+from typer.testing import CliRunner
 
 SECRET = "test-audit-hmac-secret-32bytes-of-entropy-here"
 runner = CliRunner()

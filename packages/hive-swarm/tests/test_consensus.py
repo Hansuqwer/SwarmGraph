@@ -1,7 +1,6 @@
 """Consensus tests — exercises every protocol + the new canonicalization."""
 
 import pytest
-
 from swarm.models.agent import AgentVote
 from swarm.models.consensus import (
     bft_consensus,

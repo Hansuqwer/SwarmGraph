@@ -15,17 +15,15 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from swarm.graphs.factory import (
-    _MockCompiledGraph,
     _build_mock_graph,
     _merge_worker_results,
+    _MockCompiledGraph,
     build_swarm_graph,
 )
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState
 from swarm.models.types import QUEEN_NODE_NAMES
-
 
 # ── F-13-CORR2: all 5 queen aliases registered ─────────────────────────
 

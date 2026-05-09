@@ -10,8 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..models.provider import ProviderInfo
-from ..models.quota import QuotaUsage, QuotaStatus
-
+from ..models.quota import QuotaStatus, QuotaUsage
 
 # ── Prohibited request metadata keys ─────────────────────────────────────────
 

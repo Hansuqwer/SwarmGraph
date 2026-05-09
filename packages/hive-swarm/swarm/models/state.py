@@ -18,7 +18,6 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
-
 from swarm_shared.bounded_list import CappedListConfig, cap_list
 
 from ..llm.embeddings import (
@@ -138,13 +137,13 @@ class SwarmState(HardenedModel):
         return v
 
     @model_validator(mode="after")
-    def _auto_objective_hash(self) -> "SwarmState":
+    def _auto_objective_hash(self) -> SwarmState:
         if not self.objective_hash:
             self.objective_hash = stable_hash(self.objective)
         return self
 
     @model_validator(mode="after")
-    def _cap_lists(self) -> "SwarmState":
+    def _cap_lists(self) -> SwarmState:
         new_history = cap_list(self.history, _HISTORY_CFG)
         if new_history is not self.history:
             self.history = new_history
@@ -157,7 +156,7 @@ class SwarmState(HardenedModel):
         return self
 
     @model_validator(mode="after")
-    def _agent_count_le_config(self) -> "SwarmState":
+    def _agent_count_le_config(self) -> SwarmState:
         if len(self.agents) > self.config.max_agents:
             raise ValueError(
                 f"agents count ({len(self.agents)}) exceeds "
@@ -304,7 +303,7 @@ class SwarmState(HardenedModel):
         return self.model_dump(mode="json")
 
     @classmethod
-    def from_json_dict(cls, data: dict[str, Any]) -> "SwarmState":
+    def from_json_dict(cls, data: dict[str, Any]) -> SwarmState:
         return cls.model_validate(data)
 
 
@@ -321,7 +320,7 @@ class SwarmCheckpoint(HardenedModel):
     schema_version: int = Field(default=1, ge=1)
 
     @classmethod
-    def from_state(cls, state: SwarmState, checkpoint_id: str) -> "SwarmCheckpoint":
+    def from_state(cls, state: SwarmState, checkpoint_id: str) -> SwarmCheckpoint:
         return cls(
             checkpoint_id=checkpoint_id,
             swarm_id=state.swarm_id,

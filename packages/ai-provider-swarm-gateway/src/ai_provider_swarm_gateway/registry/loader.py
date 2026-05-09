@@ -12,7 +12,6 @@ from pydantic import ValidationError
 
 from ..models.provider import ProviderInfo
 
-
 _REGISTRY_PATH = Path(__file__).parent / "providers.yaml"
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from swarm.llm.dispatch import (
     DEFAULT_SETTINGS,
     GatewayDispatcher,
@@ -17,7 +16,6 @@ from swarm.llm.dispatch import (
     resolve_llm_settings,
 )
 from swarm.llm.prompts import get_system_prompt
-
 
 # ── settings resolution ───────────────────────────────────────────────────
 

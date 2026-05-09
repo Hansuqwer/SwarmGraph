@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from swarm.models.agent import AgentSpec, AgentVote, WorkerResult
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState

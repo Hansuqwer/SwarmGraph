@@ -12,9 +12,8 @@ import json
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -24,8 +23,8 @@ runner = CliRunner()
 
 def _gateway_fully_vendored() -> bool:
     try:
-        from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
         from ai_provider_swarm_gateway.graph.builder import build_gateway_graph  # noqa: F401
+        from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
 
         return True
     except Exception:

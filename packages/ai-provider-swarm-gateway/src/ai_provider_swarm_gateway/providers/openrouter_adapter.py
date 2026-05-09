@@ -1,6 +1,7 @@
 """OpenRouter adapter — requires OPENROUTER_API_KEY. Routes to free models by default."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

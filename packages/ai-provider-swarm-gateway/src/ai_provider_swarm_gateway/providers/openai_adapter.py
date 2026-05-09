@@ -1,6 +1,7 @@
 """OpenAI adapter stub — requires OPENAI_API_KEY env var."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

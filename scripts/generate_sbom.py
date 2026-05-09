@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,7 @@ def build_sbom(lock_path: Path) -> dict[str, Any]:
         "specVersion": "1.6",
         "version": 1,
         "metadata": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "component": {
                 "type": "application",
                 "name": "swarmgraph",

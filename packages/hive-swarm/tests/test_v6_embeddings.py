@@ -3,7 +3,6 @@
 import math
 
 import pytest
-
 from swarm.llm.embeddings import (
     GatewayEmbedder,
     HashEmbedder,
@@ -12,7 +11,6 @@ from swarm.llm.embeddings import (
     get_default_embedder,
     set_default_embedder,
 )
-
 
 # ── Cosine similarity helper ─────────────────────────────────────────────
 

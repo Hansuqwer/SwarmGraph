@@ -1,6 +1,7 @@
 """Moonshot Kimi adapter stub — requires MOONSHOT_KIMI_API_KEY."""
 
 from __future__ import annotations
+
 from ..models.state import GatewayResponse
 from .base import ProviderAdapter
 

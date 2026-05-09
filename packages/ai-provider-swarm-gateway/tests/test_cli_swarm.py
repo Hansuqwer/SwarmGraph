@@ -5,9 +5,8 @@ from __future__ import annotations
 import json
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

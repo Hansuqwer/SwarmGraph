@@ -1,7 +1,6 @@
 """Tests for the 3-mode anti-drift dispatch in SwarmState.check_drift."""
 
 import pytest
-
 from swarm.llm.embeddings import HashEmbedder, NullEmbedder
 from swarm.models.config import SwarmConfig
 from swarm.models.state import SwarmState

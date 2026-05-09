@@ -11,18 +11,17 @@ import json
 from typing import Any
 
 import pytest
-from typer.testing import CliRunner
-
 from ai_provider_swarm_gateway.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
 
 def _gateway_fully_vendored() -> bool:
     try:
-        from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
-        from ai_provider_swarm_gateway.graph.builder import build_gateway_graph  # noqa: F401
         from ai_provider_swarm_gateway.graph import nodes as _nodes  # noqa: F401
+        from ai_provider_swarm_gateway.graph.builder import build_gateway_graph  # noqa: F401
+        from ai_provider_swarm_gateway.models.state import GatewayState  # noqa: F401
 
         return True
     except Exception:
@@ -58,8 +57,8 @@ def fake_9router_adapter(monkeypatch):
     if not GATEWAY_OK:
         pytest.skip(SKIP_REASON)
 
-    from ai_provider_swarm_gateway.providers.nine_router_adapter import NineRouterAdapter
     from ai_provider_swarm_gateway.graph import nodes as graph_nodes
+    from ai_provider_swarm_gateway.providers.nine_router_adapter import NineRouterAdapter
 
     fake_http = _FakeHttp(200, PONG_BODY)
     real_get_adapter = graph_nodes._get_adapter

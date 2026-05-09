@@ -61,7 +61,7 @@ class HardenedModel(BaseModel):
         return self.model_dump(mode="json")
 
     @classmethod
-    def from_json_dict(cls, data: dict[str, Any]) -> "HardenedModel":
+    def from_json_dict(cls, data: dict[str, Any]) -> HardenedModel:
         """Reconstruct from a JSON-safe dict (checkpoint restore)."""
         return cls.model_validate(data)
 
