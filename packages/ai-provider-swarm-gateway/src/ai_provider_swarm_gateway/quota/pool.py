@@ -94,7 +94,10 @@ class SecretStore:
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(self._data, sort_keys=True).encode("utf-8")
-        self.path.write_bytes(self._fernet.encrypt(payload))
+        tmp_path = self.path.with_name(f".{self.path.name}.tmp")
+        tmp_path.write_bytes(self._fernet.encrypt(payload))
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, self.path)
         os.chmod(self.path, 0o600)
 
     def add_key(self, provider_id: str, account_id: str, secret: str) -> None:

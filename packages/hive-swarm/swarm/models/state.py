@@ -15,6 +15,7 @@ Why dict not AuditRecord:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
@@ -44,6 +45,7 @@ _ERRORS_CFG = CappedListConfig(max_len=100, keep_strategy="tail")
 _AUDIT_RECORDS_CFG = CappedListConfig(max_len=10_000, keep_strategy="tail")
 _MAX_AGENTS: int = 100
 _MAX_RETRIEVED_CONTEXT = 10
+_SWARM_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
 
 
 class SwarmState(HardenedModel):
@@ -125,8 +127,8 @@ class SwarmState(HardenedModel):
     @field_validator("swarm_id")
     @classmethod
     def _id_no_spaces(cls, v: str) -> str:
-        if " " in v:
-            raise ValueError("swarm_id must not contain spaces")
+        if not _SWARM_ID_RE.match(v):
+            raise ValueError("swarm_id must match [a-zA-Z0-9_-]{1,128}")
         return v
 
     @field_validator("agents")

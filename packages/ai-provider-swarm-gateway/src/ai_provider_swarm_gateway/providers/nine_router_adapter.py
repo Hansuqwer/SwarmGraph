@@ -58,13 +58,14 @@ DEFAULT_MODEL = "kc/kilo-auto/free"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_STREAM_TIMEOUT_SECONDS = 300.0
 _ALLOWED_URL_SCHEMES = {"http", "https"}
+_ENV_ALLOW_OPENAI_ALIAS = "AI_PROVIDER_GATEWAY_9ROUTER_ALLOW_OPENAI_KEY"
+_ENV_ALLOWED_HOSTS = "AI_PROVIDER_GATEWAY_9ROUTER_ALLOWED_HOSTS"
 
 _API_KEY_ENV_ALIASES = (
     "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
     "ROUTER_API_KEY",
     "NINEROUTER_API_KEY",
     "KILO_CODE_API_KEY",
-    "OPENAI_API_KEY",
 )
 
 
@@ -98,6 +99,8 @@ def _resolve_api_key(explicit: str | None = None) -> str | None:
         v = os.environ.get(env_name)
         if v:
             return v
+    if os.environ.get(_ENV_ALLOW_OPENAI_ALIAS, "").strip().lower() in {"1", "true", "yes", "on"}:
+        return os.environ.get("OPENAI_API_KEY")
     return None
 
 
@@ -171,6 +174,12 @@ def _validate_http_url(url: str) -> str:
         raise ValueError(f"URL must be absolute HTTP(S): {url!r}")
     if parsed.scheme == "http" and not _is_loopback_host(parsed.hostname or ""):
         raise ValueError("9router base URL must use HTTPS unless it targets loopback/localhost")
+    allowed_hosts = os.environ.get(_ENV_ALLOWED_HOSTS, "").strip()
+    if allowed_hosts:
+        host = (parsed.hostname or "").lower()
+        allowed = {item.strip().lower() for item in allowed_hosts.split(",") if item.strip()}
+        if host not in allowed:
+            raise ValueError(f"9router host {host!r} is not in {_ENV_ALLOWED_HOSTS}")
     return url
 
 

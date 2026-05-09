@@ -174,7 +174,7 @@ def test_alias_kilo_code(monkeypatch):
     assert _resolve_api_key() == "via-kilo"
 
 
-def test_alias_openai_fallback(monkeypatch):
+def test_openai_fallback_requires_opt_in(monkeypatch):
     for name in (
         "AI_PROVIDER_GATEWAY_9ROUTER_API_KEY",
         "ROUTER_API_KEY",
@@ -184,6 +184,9 @@ def test_alias_openai_fallback(monkeypatch):
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "openai-fallback")
+    assert _resolve_api_key() is None
+
+    monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_ALLOW_OPENAI_KEY", "1")
     assert _resolve_api_key() == "openai-fallback"
 
 
@@ -228,6 +231,14 @@ def test_validate_base_url_allows_local_http_and_remote_https():
 def test_validate_base_url_rejects_remote_http():
     with pytest.raises(ValueError, match="HTTPS"):
         _validate_http_url("http://example.com/v1")
+
+
+def test_validate_base_url_honors_allowed_hosts(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER_GATEWAY_9ROUTER_ALLOWED_HOSTS", "router.example")
+
+    assert _validate_http_url("https://router.example/v1") == "https://router.example/v1"
+    with pytest.raises(ValueError, match="not in AI_PROVIDER_GATEWAY_9ROUTER_ALLOWED_HOSTS"):
+        _validate_http_url("https://other.example/v1")
 
 
 def test_is_configured_true_with_explicit_key():

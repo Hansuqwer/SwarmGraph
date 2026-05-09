@@ -43,6 +43,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import sys
 import time
 from collections.abc import Iterable, Iterator
 from pathlib import Path
@@ -299,11 +300,39 @@ def append_jsonl(path: Path, record: AuditRecord) -> None:
             f"reduce payload size or use a different persistence backend"
         )
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        _assert_append_boundary(load_jsonl_chain(path), record)
-    with open(path, "a", encoding="utf-8") as fh:
-        fh.write(line)
-        fh.flush()
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    with open(lock_path, "a+") as lock_fh:
+        _lock_file(lock_fh)
+        try:
+            if path.exists():
+                _assert_append_boundary(load_jsonl_chain(path), record)
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(line)
+                fh.flush()
+        finally:
+            _unlock_file(lock_fh)
+
+
+if sys.platform == "win32":
+    import msvcrt
+
+    def _lock_file(fh) -> None:
+        msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+
+    def _unlock_file(fh) -> None:
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+
+else:
+    import fcntl
+
+    def _lock_file(fh) -> None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+
+    def _unlock_file(fh) -> None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 def load_jsonl_chain(path: Path) -> list[AuditRecord]:

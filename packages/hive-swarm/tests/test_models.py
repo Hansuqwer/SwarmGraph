@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 from swarm.models.agent import AgentSpec, AgentVote, WorkerResult
 from swarm.models.config import SwarmConfig
+from swarm.models.state import SwarmState
 from swarm.models.task import SwarmTask
 from swarm.models.types import QUEEN_NODE_NAMES
 
@@ -70,6 +71,14 @@ def test_swarm_config_memory_namespace_charset():
     """F-10-T1: traversal-style names rejected."""
     with pytest.raises(ValidationError):
         SwarmConfig(memory_namespace="../escape")
+
+
+def test_swarm_state_swarm_id_charset():
+    with pytest.raises(ValidationError):
+        SwarmState(swarm_id="../escape", objective="x", config=SwarmConfig())
+
+    state = SwarmState(swarm_id="safe_id-1", objective="x", config=SwarmConfig())
+    assert state.swarm_id == "safe_id-1"
 
 
 def test_swarm_task_no_self_dep():
