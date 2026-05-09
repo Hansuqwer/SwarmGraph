@@ -391,7 +391,7 @@ def test_audit_verify_truncated_log_caught_by_head_hash_pin(
 
 
 def test_audit_verify_help_shows_pin_flags():
-    result = runner.invoke(app, ["audit", "verify", "--help"])
+    result = runner.invoke(app, ["audit", "verify", "--help"], terminal_width=160)
 
     assert result.exit_code == 0
     assert "--expected-head-hash" in result.stdout

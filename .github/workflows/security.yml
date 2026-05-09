@@ -50,7 +50,6 @@ jobs:
 
       - name: Run pip-audit
         run: uv run pip-audit --desc --skip-editable
-        continue-on-error: true  # advisory until dependency baseline is triaged
 
   bandit:
     runs-on: ubuntu-latest

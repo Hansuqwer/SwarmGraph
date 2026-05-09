@@ -35,7 +35,7 @@ def test_swarm_help_in_root():
 
 
 def test_swarm_help_works():
-    result = runner.invoke(app, ["swarm", "--help"])
+    result = runner.invoke(app, ["swarm", "--help"], terminal_width=160)
     assert result.exit_code == 0
     assert "--prompt" in result.stdout
     assert "--backend" in result.stdout
