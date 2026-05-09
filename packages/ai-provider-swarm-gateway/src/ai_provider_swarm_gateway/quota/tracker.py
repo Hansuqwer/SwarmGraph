@@ -151,29 +151,16 @@ class QuotaTracker:
         self._lock_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._lock_path, "a+") as lock_fh:
             with _file_lock(lock_fh):
-                if self.storage_path.exists():
-                    try:
-                        on_disk = json.loads(self.storage_path.read_text(encoding="utf-8"))
-                        merged: dict[str, dict[str, Any]] = {}
-                        all_keys = set(on_disk) | set(self._data)
-                        for k in all_keys:
-                            ours = self._data.get(k, {})
-                            theirs = on_disk.get(k, {})
-                            merged[k] = {
-                                "used_requests": max(
-                                    ours.get("used_requests", 0),
-                                    theirs.get("used_requests", 0),
-                                ),
-                                "used_tokens": max(
-                                    ours.get("used_tokens", 0),
-                                    theirs.get("used_tokens", 0),
-                                ),
-                                "reset_at": ours.get("reset_at") or theirs.get("reset_at"),
-                            }
-                        self._data = merged
-                    except (json.JSONDecodeError, OSError):
-                        pass
                 atomic_write_json(self.storage_path, self._data, default=str)
+
+    def _load_from_disk_unlocked(self) -> dict[str, dict[str, Any]]:
+        if not self.storage_path.exists():
+            return {}
+        try:
+            raw = json.loads(self.storage_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        return raw if isinstance(raw, dict) else {}
 
     def _authoritative_save_locked(self) -> None:
         """Write in-memory state verbatim, with no merge against disk."""
@@ -211,15 +198,18 @@ class QuotaTracker:
     ) -> QuotaUsage:
         if requests < 0 or tokens < 0:
             raise ValueError("Cannot decrement quota usage")
-        self._ensure_loaded()
-        if self._data is None:
-            raise RuntimeError("quota tracker state is not loaded")
         key = f"{provider_id}:{window}"
-        if key not in self._data:
-            self._data[key] = {"used_requests": 0, "used_tokens": 0, "reset_at": None}
-        self._data[key]["used_requests"] = self._data[key].get("used_requests", 0) + requests
-        self._data[key]["used_tokens"] = self._data[key].get("used_tokens", 0) + tokens
-        self._save_locked()
+        self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._lock_path, "a+") as lock_fh:
+            with _file_lock(lock_fh):
+                data = self._load_from_disk_unlocked()
+                current = data.get(key, {"used_requests": 0, "used_tokens": 0, "reset_at": None})
+                current["used_requests"] = int(current.get("used_requests", 0)) + requests
+                current["used_tokens"] = int(current.get("used_tokens", 0)) + tokens
+                current.setdefault("reset_at", None)
+                data[key] = current
+                self._data = data
+                atomic_write_json(self.storage_path, self._data, default=str)
         return self.get_usage(provider_id, window)
 
     def reset_usage(

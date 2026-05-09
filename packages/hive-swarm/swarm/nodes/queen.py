@@ -23,10 +23,12 @@ from ..models.task import QueenDirective, SwarmTask
 from ..models.types import AgentRole, SwarmTopology
 
 try:
+    from langgraph.graph import END
     from langgraph.types import Send
 
     _HAS_SEND = True
 except ImportError:  # pragma: no cover
+    END = "__end__"
     Send = None  # type: ignore[assignment,misc]
     _HAS_SEND = False
 
@@ -125,17 +127,17 @@ def _llm_settings_from_config(config: Any) -> dict[str, Any]:
     }
 
 
-# ── Queen node (unchanged) ───────────────────────────────────────────────
+# ── Queen node ───────────────────────────────────────────────────────────
 
 
-def queen_node(state: dict[str, Any]) -> list[Any]:
+def queen_decompose_node(state: dict[str, Any]) -> dict[str, Any]:
     swarm = SwarmState.model_validate(state)
     swarm.status = "decomposing"
     swarm.iteration += 1
 
     if swarm.iteration > swarm.config.max_iterations:
         swarm.fail("max_iterations_exceeded", "Max swarm iterations exceeded")
-        return [swarm.to_json_dict()]
+        return swarm.to_json_dict()
 
     topology: SwarmTopology = swarm.config.topology
     decompose = _DECOMPOSE_FN[topology]
@@ -157,7 +159,6 @@ def queen_node(state: dict[str, Any]) -> list[Any]:
 
     new_tasks: list[SwarmTask] = []
     new_agents: list[AgentSpec] = []
-    send_list: list[Any] = []
 
     retrieved_patterns = list(swarm.retrieved_context) if swarm.retrieved_context else []
     llm_settings = _llm_settings_from_config(swarm.config)
@@ -192,16 +193,7 @@ def queen_node(state: dict[str, Any]) -> list[Any]:
                 "llm_settings": llm_settings,
             },
         )
-        agent_state = AgentState(
-            agent_id=agent_id,
-            role=role,
-            assigned_task_id=task_id,
-            task_description=desc,
-            task_context=directive.model_dump(mode="json"),
-        )
-
-        if _HAS_SEND and Send is not None:
-            send_list.append(Send("worker_node", agent_state.to_json_dict()))
+        task.context = {**task.context, "queen_directive": directive.model_dump(mode="json")}
 
     swarm.agents = list(swarm.agents) + new_agents
     swarm.tasks = list(swarm.tasks) + new_tasks
@@ -218,15 +210,42 @@ def queen_node(state: dict[str, Any]) -> list[Any]:
     )
     swarm.touch()
 
-    if not _HAS_SEND or Send is None:
-        if not send_list:
-            return [swarm.to_json_dict()]
-        raise RuntimeError(
-            "langgraph.types.Send is unavailable but send_list is non-empty. "
-            "Install langgraph>=0.3.0 to enable real fan-out."
-        )
+    return swarm.to_json_dict()
 
-    return send_list
+
+def queen_fanout_router(state: dict[str, Any]) -> list[Any] | str:
+    """Route current-iteration queen tasks without mutating graph state."""
+    if not _HAS_SEND or Send is None:
+        return END
+
+    swarm = SwarmState.model_validate(state)
+    prefix = f"task-{swarm.iteration}-"
+    sends: list[Any] = []
+    for task in swarm.tasks:
+        if not task.task_id.startswith(prefix) or not task.assigned_to:
+            continue
+        agent = next((spec for spec in swarm.agents if spec.agent_id == task.assigned_to), None)
+        if agent is None:
+            continue
+        directive = task.context.get("queen_directive") or {}
+        agent_state = AgentState(
+            agent_id=agent.agent_id,
+            role=agent.role,
+            assigned_task_id=task.task_id,
+            task_description=task.description,
+            task_context=directive if isinstance(directive, dict) else {},
+        )
+        sends.append(Send("worker_node", agent_state.to_json_dict()))
+
+    return sends or END
+
+
+def queen_node(state: dict[str, Any]) -> list[Any] | str:
+    """Backward-compatible combined helper; graph wiring uses split functions."""
+    decomposed = queen_decompose_node(state)
+    if not _HAS_SEND or Send is None:
+        return [decomposed]
+    return queen_fanout_router(decomposed)
 
 
 # ── Tier 1 (deterministic, unchanged) ────────────────────────────────────

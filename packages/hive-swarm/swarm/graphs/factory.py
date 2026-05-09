@@ -29,7 +29,12 @@ from ..nodes.approval import approval_node, route_after_approval
 from ..nodes.checkpointing import SwarmRedactingCheckpointer
 from ..nodes.consensus import consensus_node, route_after_consensus
 from ..nodes.judge import judge_node, route_after_judge
-from ..nodes.queen import fast_agent_node, medium_agent_node, queen_node
+from ..nodes.queen import (
+    fast_agent_node,
+    medium_agent_node,
+    queen_decompose_node,
+    queen_fanout_router,
+)
 from ..nodes.router import route_task, router_node
 from ..nodes.scaling import scaling_node
 from ..nodes.sona import distill_node, memory_retrieve_node
@@ -149,11 +154,6 @@ class _SwarmGraphState(TypedDict, total=False):
 # ── Main factory (unchanged contract) ────────────────────────────────────
 
 
-def _queen_passthrough(state: dict[str, Any]) -> dict[str, Any]:
-    """Queen fan-out is emitted by conditional edges, not node updates."""
-    return state
-
-
 def build_swarm_graph(
     config: SwarmConfig,
     checkpointer: Any | None = None,
@@ -172,7 +172,7 @@ def build_swarm_graph(
     builder.add_node("fast_agent", fast_agent_node)  # pyright: ignore[reportArgumentType]
     builder.add_node("medium_agent", medium_agent_node)  # pyright: ignore[reportArgumentType]
     for queen_name in all_queen_names:
-        builder.add_node(queen_name, _queen_passthrough)  # pyright: ignore[reportArgumentType]
+        builder.add_node(queen_name, queen_decompose_node)  # pyright: ignore[reportArgumentType]
     builder.add_node("worker_node", worker_node)  # pyright: ignore[reportArgumentType]
     builder.add_node("collect_results", collect_results_node)  # pyright: ignore[reportArgumentType]
     builder.add_node("consensus_node", consensus_node)  # pyright: ignore[reportArgumentType]
@@ -195,7 +195,7 @@ def build_swarm_graph(
     builder.add_edge("medium_agent", "distill_node")
 
     for name in all_queen_names:
-        builder.add_conditional_edges(name, queen_node, ["worker_node"])
+        builder.add_conditional_edges(name, queen_fanout_router, ["worker_node", END])
     builder.add_edge("worker_node", "collect_results")
     builder.add_edge("collect_results", "consensus_node")
 
@@ -253,7 +253,10 @@ class _MockCompiledGraph:
             state = medium_agent_node(state)
             state = distill_node(state)
         else:
-            sends = queen_node(state)
+            state = queen_decompose_node(state)
+            sends = queen_fanout_router(state)
+            if isinstance(sends, str):
+                sends = []
             for send in sends:
                 payload = send[1] if isinstance(send, (list, tuple)) else send
                 if isinstance(payload, dict) and "agent_id" in payload:
