@@ -442,6 +442,19 @@ def test_audit_verify_s3_requires_swarm_id(monkeypatch):
     assert "swarm-id" in (result.stdout + (result.stderr or "")).lower()
 
 
+def test_audit_verify_s3_rejects_unsafe_swarm_id(monkeypatch):
+    _install_fake_s3_backend(monkeypatch, [])
+    monkeypatch.setenv("HIVE_SWARM_AUDIT_SECRET", SECRET)
+
+    result = runner.invoke(
+        app,
+        ["audit", "verify", "s3://bucket/audit", "--swarm-id", "../escape"],
+    )
+
+    assert result.exit_code != 0
+    assert "must match" in (result.stdout + (result.stderr or ""))
+
+
 def test_audit_verify_s3_success_json(monkeypatch):
     chain = AuditChain(swarm_id="s1", secret=SECRET)
     for i in range(2):

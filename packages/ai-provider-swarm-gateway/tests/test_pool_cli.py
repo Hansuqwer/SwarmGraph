@@ -119,3 +119,78 @@ def test_pool_sync_push_uses_s3_without_printing_secret(monkeypatch, tmp_path):
     assert result.exit_code == 0
     assert "encrypted-secret-value" not in result.stdout
     assert calls["upload"] == (str(vault_path), "bucket", "vault.enc", True)
+
+
+def test_pool_sync_pull_is_atomic_and_requires_confirm_for_overwrite(monkeypatch, tmp_path):
+    vault_path = tmp_path / "secrets.json.enc"
+    vault_path.write_bytes(b"old-vault")
+    calls = {}
+
+    class _S3:
+        def download_file(self, bucket, key, filename, Config=None):
+            calls["download"] = (bucket, key, filename, Config is not None)
+            assert filename.endswith(".secrets.json.enc.download")
+            with open(filename, "wb") as fh:
+                fh.write(b"new-vault")
+
+    class _Boto3:
+        @staticmethod
+        def client(name):
+            assert name == "s3"
+            return _S3()
+
+    class _TransferConfig:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    import sys
+    import types
+
+    boto3_mod = types.ModuleType("boto3")
+    boto3_mod.client = _Boto3.client
+    transfer_mod = types.ModuleType("boto3.s3.transfer")
+    transfer_mod.TransferConfig = _TransferConfig
+    s3_mod = types.ModuleType("boto3.s3")
+    s3_mod.transfer = transfer_mod
+    monkeypatch.setitem(sys.modules, "boto3", boto3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3", s3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3.transfer", transfer_mod)
+
+    denied = runner.invoke(
+        app,
+        [
+            "tenants",
+            "pool",
+            "sync",
+            "--bucket",
+            "bucket",
+            "--key",
+            "vault.enc",
+            "--vault-path",
+            str(vault_path),
+            "--pull",
+        ],
+        input="n\n",
+    )
+    assert denied.exit_code != 0
+    assert vault_path.read_bytes() == b"old-vault"
+
+    pulled = runner.invoke(
+        app,
+        [
+            "tenants",
+            "pool",
+            "sync",
+            "--bucket",
+            "bucket",
+            "--key",
+            "vault.enc",
+            "--vault-path",
+            str(vault_path),
+            "--pull",
+            "--yes",
+        ],
+    )
+    assert pulled.exit_code == 0
+    assert vault_path.read_bytes() == b"new-vault"
+    assert calls["download"][0:2] == ("bucket", "vault.enc")

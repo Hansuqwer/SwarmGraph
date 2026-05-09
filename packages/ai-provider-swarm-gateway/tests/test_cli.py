@@ -137,3 +137,32 @@ def test_storage_env_override(tmp_path: Path, monkeypatch):
     )
     assert result.exit_code == 0
     assert fp.exists()
+
+
+def test_storage_path_confined_by_state_dir(tmp_path: Path, monkeypatch):
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    allowed = state_dir / "usage.json"
+    monkeypatch.setenv("AI_PROVIDER_GATEWAY_STATE_DIR", str(state_dir))
+
+    ok = runner.invoke(
+        app,
+        ["quota", "increment", "--provider", "groq", "--tokens", "1", "--storage", str(allowed)],
+    )
+    assert ok.exit_code == 0
+
+    denied = runner.invoke(
+        app,
+        [
+            "quota",
+            "increment",
+            "--provider",
+            "groq",
+            "--tokens",
+            "1",
+            "--storage",
+            str(tmp_path / "outside.json"),
+        ],
+    )
+    assert denied.exit_code != 0
+    assert "path must be under" in (denied.stdout + (denied.stderr or ""))

@@ -118,6 +118,13 @@ def test_route_thread_id_propagates():
     assert payload["thread_id"] == custom_tid
 
 
+def test_route_thread_id_rejects_unsafe_value():
+    result = runner.invoke(app, ["route", "--prompt", "x", "--thread-id", "../escape"])
+
+    assert result.exit_code != 0
+    assert "must match" in (result.stdout + (result.stderr or ""))
+
+
 @pytest.mark.skipif(not GATEWAY_OK, reason=SKIP_REASON)
 def test_route_show_audit_includes_audit_log():
     result = runner.invoke(

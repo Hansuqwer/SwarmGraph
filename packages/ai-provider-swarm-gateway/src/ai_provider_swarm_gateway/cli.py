@@ -87,11 +87,17 @@ _console = Console() if _HAS_RICH else None
 
 def _resolve_storage_path(custom: Path | None, tenant: str | None = None) -> Path | None:
     """Return the storage path; None means 'let QuotaTracker decide from tenant_id or env'."""
+    state_dir = os.environ.get("AI_PROVIDER_GATEWAY_STATE_DIR")
     if custom is not None:
+        if state_dir:
+            return _resolve_under_base(custom, Path(state_dir))
         return custom
     env_override = os.environ.get("AI_PROVIDER_GATEWAY_USAGE_PATH")
     if env_override:
-        return Path(env_override)
+        path = Path(env_override)
+        if state_dir:
+            return _resolve_under_base(path, Path(state_dir))
+        return path
     return None  # tracker will use tenant_id or default
 
 
@@ -135,6 +141,25 @@ def _err(text: str) -> None:
 
 
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhd])$")
+_SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_safe_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not _SAFE_ID_RE.match(value):
+        raise typer.BadParameter("must match [a-zA-Z0-9_-]{1,128}")
+    return value
+
+
+def _resolve_under_base(path: Path, base: Path) -> Path:
+    resolved = path.expanduser().resolve()
+    base_resolved = base.expanduser().resolve()
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError as exc:
+        raise typer.BadParameter(f"path must be under {base_resolved}") from exc
+    return resolved
 
 
 def _parse_duration_to_seconds(s: str) -> int:
@@ -465,6 +490,7 @@ def pool_sync(
     vault_path: Path | None = typer.Option(None, "--vault-path"),
     push: bool = typer.Option(False, "--push"),
     pull: bool = typer.Option(False, "--pull"),
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Overwrite existing local vault on pull."),
 ) -> None:
     """Push/pull the encrypted vault blob to S3. Secrets are not logged."""
     if push == pull:
@@ -490,8 +516,13 @@ def pool_sync(
             s3.upload_file(str(path), bucket, key, Config=config)
             _print_plain(f"pushed encrypted vault to s3://{bucket}/{key}")
         else:
+            if path.exists() and not confirm:
+                typer.confirm(f"Overwrite existing local vault {path}?", abort=True)
             path.parent.mkdir(parents=True, exist_ok=True)
-            s3.download_file(bucket, key, str(path), Config=config)
+            tmp_path = path.with_name(f".{path.name}.download")
+            s3.download_file(bucket, key, str(tmp_path), Config=config)
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, path)
             os.chmod(path, 0o600)
             _print_plain(f"pulled encrypted vault from s3://{bucket}/{key}")
     except typer.Exit:
@@ -702,7 +733,7 @@ def route(
     prompt: str = typer.Option(..., "--prompt"),
     capability: str | None = typer.Option(None, "--capability", "-c"),
     preferred: str | None = typer.Option(None, "--preferred"),
-    thread_id: str | None = typer.Option(None, "--thread-id"),
+    thread_id: str | None = typer.Option(None, "--thread-id", callback=_validate_safe_id),
     allow_unknown_quota: bool = typer.Option(False, "--allow-unknown-quota"),
     json_output: bool = typer.Option(False, "--json"),
     show_audit: bool = typer.Option(False, "--show-audit"),
@@ -936,6 +967,7 @@ def audit_verify(
     swarm_id: str | None = typer.Option(
         None,
         "--swarm-id",
+        callback=_validate_safe_id,
         help="Swarm ID required when verifying s3:// audit logs.",
     ),
 ) -> None:
@@ -1281,7 +1313,7 @@ def swarm(
     temperature: float = typer.Option(0.0, "--temperature", min=0.0, max=2.0),
     sona: bool = typer.Option(True, "--sona/--no-sona"),
     auto_approve: bool = typer.Option(True, "--auto-approve/--no-auto-approve"),
-    thread_id: str | None = typer.Option(None, "--thread-id"),
+    thread_id: str | None = typer.Option(None, "--thread-id", callback=_validate_safe_id),
     json_output: bool = typer.Option(False, "--json"),
     show_workers: bool = typer.Option(False, "--show-workers"),
     anti_drift_mode: str = typer.Option("keyword", "--anti-drift"),
