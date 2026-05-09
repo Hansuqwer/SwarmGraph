@@ -77,11 +77,13 @@ uv run ai-provider-gateway swarm \
 
 ## Packages
 
+Until v0.8.1 ships to PyPI, install from source via `uv sync --all-extras --dev` from a checkout.
+
 | Package | Description | Install |
 |---|---|---|
-| [`swarm-shared`](packages/swarm-shared/) | Pydantic primitives, audit chain, pricing, redaction | `pip install swarm-shared` |
-| [`hive-swarm`](packages/hive-swarm/) | Queen/worker graph, consensus, HITL, anti-drift | `pip install hive-swarm` |
-| [`ai-provider-swarm-gateway`](packages/ai-provider-swarm-gateway/) | Multi-provider gateway, quota, CLI | `pip install ai-provider-swarm-gateway` |
+| [`swarm-shared`](packages/swarm-shared/) | Pydantic primitives, audit chain, pricing, redaction | `pip install swarm-shared` # available from v0.8.1 onward |
+| [`hive-swarm`](packages/hive-swarm/) | Queen/worker graph, consensus, HITL, anti-drift | `pip install hive-swarm` # available from v0.8.1 onward |
+| [`ai-provider-swarm-gateway`](packages/ai-provider-swarm-gateway/) | Multi-provider gateway, quota, CLI | `pip install ai-provider-swarm-gateway` # available from v0.8.1 onward |
 
 ---
 
@@ -157,7 +159,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions require:
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for version history (v0.1.0 → v0.8.0).
+See [CHANGELOG.md](CHANGELOG.md) for version history (v0.1.0 → v0.8.1).
 
 Patch history and orchestrator prompts are preserved verbatim under [docs/history/](docs/history/).
 

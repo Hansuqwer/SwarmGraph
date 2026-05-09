@@ -58,6 +58,8 @@ Thumbs.db
 .env.*
 *_secrets.*
 *_secret.*
+*.pem
+*.p12
 secrets/
 
 # Local scratch

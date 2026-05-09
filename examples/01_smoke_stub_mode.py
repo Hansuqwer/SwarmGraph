@@ -1,3 +1,12 @@
+import warnings
+
+try:
+    from langchain_core._api.deprecation import LangChainPendingDeprecationWarning
+
+    warnings.filterwarnings("ignore", category=LangChainPendingDeprecationWarning)
+except ImportError:
+    pass
+
 from swarm import SwarmConfig, SwarmState, build_swarm_graph
 
 config = SwarmConfig(

@@ -8,6 +8,8 @@ on:
     - cron: "0 6 * * 1"  # Every Monday 06:00 UTC
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +32,12 @@ jobs:
             diff_output=$(git show --format= --no-ext-diff --unified=0 HEAD -- '*.py' '*.md' '*.yaml' '*.yml' '*.json' '*.toml')
           fi
 
-          if grep -iE 'sk-[a-z0-9]{20}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|Bearer [a-zA-Z0-9]{20,}' <<<"$diff_output"; then
+          if grep -E 'sk-[a-z0-9]{20}|AKIA[0-9A-Z]{16}|gh[opusr]_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|Bearer [A-Za-z0-9._-]{20,}' <<<"$diff_output"; then
+            echo "::error::Potential secret detected in diff"
+            exit 1
+          fi
+
+          if grep -E -- '-----BEGIN [A-Z ]*PRIVATE KEY-----' <<<"$diff_output"; then
             echo "::error::Potential secret detected in diff"
             exit 1
           fi
