@@ -240,7 +240,7 @@ class SwarmConfig(FrozenModel):
             try:
                 re.compile(pat)
             except re.error as e:
-                raise ValueError(f"invalid regex pattern {pat!r}: {e}")
+                raise ValueError(f"invalid regex pattern {pat!r}: {e}") from e
         return v
 
     @model_validator(mode="after")

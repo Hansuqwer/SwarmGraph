@@ -56,15 +56,18 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E9", "F63", "F7", "F82", "B", "I", "UP"]
+select = ["E9", "F63", "F7", "F82", "B", "I", "UP", "S"]
 ignore = [
     "B008",  # Typer uses Option()/Argument() defaults by design.
-    "B904",  # staged follow-up: exception chaining cleanup.
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101"]
+"**/tests/**" = ["S101", "S105", "S106", "S107"]
 "examples/**" = ["S101"]
+"packages/ai-provider-swarm-gateway/src/ai_provider_swarm_gateway/providers/grok_adapter.py" = ["S310"]
+"packages/ai-provider-swarm-gateway/src/ai_provider_swarm_gateway/providers/nine_router_adapter.py" = ["S310"]
+"packages/hive-swarm/swarm/llm/embeddings.py" = ["S310"]
+"scripts/benchmark_swarm.py" = ["S603"]
 
 [tool.pyright]
 pythonVersion = "3.11"

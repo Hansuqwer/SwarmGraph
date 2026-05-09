@@ -165,9 +165,9 @@ def version() -> None:
     """Print package versions."""
     try:
         from importlib.metadata import version as _v
-    except ImportError:  # pragma: no cover
+    except ImportError as e:  # pragma: no cover
         _print("importlib.metadata not available")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     rows = []
     for name in (
@@ -221,7 +221,7 @@ def quota_show(
             cutoff = datetime.now(tz=UTC) - timedelta(seconds=seconds)
         except ValueError as e:
             _err(f"❌ {e}")
-            raise typer.Exit(2)
+            raise typer.Exit(2) from e
 
     if provider:
         rows = [(provider, window, tracker.get_usage(provider, window))]
@@ -707,7 +707,7 @@ def route(
         GatewayState, build_gateway_graph, _RoutingDecision = _import_gateway_pieces()
     except ImportError as e:
         _err(_MISSING_GATEWAY_MSG.format(err=e))
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     try:
         state = _build_initial_state(
@@ -719,7 +719,7 @@ def route(
         )
     except Exception as e:
         _err(f"❌ Could not construct GatewayState: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     try:
         graph = build_gateway_graph()
@@ -728,10 +728,10 @@ def route(
             graph = build_gateway_graph(state)
         except Exception as e:
             _err(f"❌ build_gateway_graph() failed: {e}")
-            raise typer.Exit(2)
+            raise typer.Exit(2) from e
     except Exception as e:
         _err(f"❌ build_gateway_graph() failed: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     tid = thread_id or f"cli-{uuid.uuid4().hex[:12]}"
 
@@ -747,7 +747,7 @@ def route(
             result = graph.invoke(init_payload)
     except Exception as e:
         _err(f"❌ Graph invocation failed: {e}")
-        raise typer.Exit(3)
+        raise typer.Exit(3) from e
 
     try:
         final_state = (
@@ -858,7 +858,7 @@ def inspect_state(json_output: bool = typer.Option(False, "--json")) -> None:
         from .models.state import GatewayState  # type: ignore
     except ImportError as e:
         _err(f"❌ Cannot import GatewayState: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     fields = getattr(GatewayState, "model_fields", {}) or {}
     rows = []
@@ -951,7 +951,7 @@ def audit_verify(
         )
     except ImportError as e:
         _err(f"swarm_shared.audit not importable: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     secret = _os_v8.environ.get(secret_env)
     if not secret:
@@ -976,7 +976,7 @@ def audit_verify(
         raise
     except Exception as e:
         _err(f"audit log malformed: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     if not records:
         if expected_count not in (None, 0):
@@ -1025,7 +1025,7 @@ def audit_verify(
             )
         else:
             _err(f"❌ chain broken: {e}")
-        raise typer.Exit(3)
+        raise typer.Exit(3) from e
 
     # Summary by kind
     by_kind: dict[str, int] = {}
@@ -1082,7 +1082,7 @@ def audit_restore(
             print(json.dumps({"ok": False, "error": str(e)}))
         else:
             _err(f"audit restore failed: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     payload = {
         "ok": True,
@@ -1119,7 +1119,7 @@ def dashboard(
         show_dashboard(history_path=history_path, storage=storage)
     except RuntimeError as e:
         _err(str(e))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except ImportError as e:
         _err("dashboard dependencies are not installed. Install with: uv sync --extra tui --dev")
         raise typer.Exit(1) from e
@@ -1302,7 +1302,7 @@ def swarm(
             f"❌ hive-swarm not installed: {e}\n"
             "   `pip install -e ../hive-swarm[langgraph]` from the repo root."
         )
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     # If --tenant given, set the env so any QuotaTracker constructed inside the
     # swarm graph picks it up automatically.
@@ -1333,7 +1333,7 @@ def swarm(
         config = SwarmConfig(**config_kwargs)
     except Exception as e:
         _err(f"❌ SwarmConfig rejected: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     swarm_id = thread_id or f"cli-{uuid.uuid4().hex[:12]}"
     state = SwarmState(swarm_id=swarm_id, objective=prompt, config=config)
@@ -1342,7 +1342,7 @@ def swarm(
         graph = build_swarm_graph(config)
     except Exception as e:
         _err(f"❌ build_swarm_graph failed: {e}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from e
 
     invoke_config = {"configurable": {"thread_id": swarm_id}}
 
@@ -1351,7 +1351,7 @@ def swarm(
         result = graph.invoke(state.to_json_dict(), config=invoke_config)
     except Exception as e:
         _err(f"❌ swarm invocation failed: {e}")
-        raise typer.Exit(3)
+        raise typer.Exit(3) from e
 
     final = SwarmState.from_json_dict(result)
 
@@ -1389,7 +1389,7 @@ def swarm(
                 final = SwarmState.from_json_dict(result)
             except Exception as e:
                 _err(f"❌ swarm resume failed: {e}")
-                raise typer.Exit(3)
+                raise typer.Exit(3) from e
 
     # ── Output ────────────────────────────────────────────────────────────
 
