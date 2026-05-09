@@ -28,7 +28,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
-from typing import Any, Optional, Protocol
+from typing import Any, Optional, Protocol, cast
 
 # ── Protocol ─────────────────────────────────────────────────────────────
 
@@ -120,7 +120,7 @@ class GatewayEmbedder:
                     out = method(text, model=self.model_id)
                 else:
                     out = method(text)
-                return list(out) if out else []
+                return list(cast(Iterable[float], out)) if out else []
             except Exception:
                 return []
         return []

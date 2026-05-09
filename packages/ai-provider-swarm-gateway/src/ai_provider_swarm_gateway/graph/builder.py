@@ -62,18 +62,18 @@ def build_gateway_graph(checkpointer: Any = None) -> Any:
     if not _HAS_LANGGRAPH or StateGraph is None:
         return _MockGraph()
 
-    builder = StateGraph(dict)
+    builder = StateGraph(dict)  # pyright: ignore[reportArgumentType]
 
     # Add all nodes
-    builder.add_node("intake", intake_node)
-    builder.add_node("classify_request", classify_request_node)
-    builder.add_node("provider_filter", provider_filter_node)
-    builder.add_node("quota_check", quota_check_node)
-    builder.add_node("swarm_route", swarm_route_node)
-    builder.add_node("consensus", consensus_node)
-    builder.add_node("provider_call", provider_call_node)
-    builder.add_node("response_validation", response_validation_node)
-    builder.add_node("usage_update", usage_update_node)
+    builder.add_node("intake", intake_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("classify_request", classify_request_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("provider_filter", provider_filter_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("quota_check", quota_check_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("swarm_route", swarm_route_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("consensus", consensus_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("provider_call", provider_call_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("response_validation", response_validation_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("usage_update", usage_update_node)  # pyright: ignore[reportArgumentType]
 
     # Entry
     builder.add_edge(START, "intake")

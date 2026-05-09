@@ -22,14 +22,14 @@ import sys
 import uuid
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from urllib.parse import urlparse
 
 import typer
 
 try:
     from rich.console import Console
-    from rich.markup import escape as _rich_escape
+    from rich.markup import escape as _rich_escape_raw
     from rich.panel import Panel
     from rich.table import Table
 
@@ -39,6 +39,10 @@ except ImportError:  # pragma: no cover
 
     def _rich_escape(s: str) -> str:
         return s
+else:
+
+    def _rich_escape(s: str) -> str:
+        return cast(str, _rich_escape_raw(s))
 
 
 from .quota.tracker import QuotaTracker
@@ -766,9 +770,9 @@ def route(
         "routing_decision",
         default=None,
     )
-    if hasattr(selected, "provider_id"):
+    if selected is not None and hasattr(selected, "provider_id"):
         selected = selected.provider_id
-    elif hasattr(selected, "selected_provider_id"):
+    elif selected is not None and hasattr(selected, "selected_provider_id"):
         selected = selected.selected_provider_id
 
     candidates = _extract_field(final_state, "candidate_providers", default=[])
@@ -781,9 +785,9 @@ def route(
         "provider_response",
         default="",
     )
-    if hasattr(response_text, "content"):
+    if response_text is not None and hasattr(response_text, "content"):
         response_text = response_text.content
-    elif hasattr(response_text, "text"):
+    elif response_text is not None and hasattr(response_text, "text"):
         response_text = response_text.text
 
     is_safe = _extract_field(final_state, "is_safe_to_proceed", default=True)

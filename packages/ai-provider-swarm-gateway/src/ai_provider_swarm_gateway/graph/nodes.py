@@ -28,13 +28,13 @@ from ..registry.loader import load_provider_registry
 # ── Shared resources (initialized once per import) ───────────────────────────
 
 _registry = None
-_registry_dict = None
+_registry_dict: dict[str, Any] | None = None
 _quota_tracker = QuotaTracker()
 
 
 def _get_registry():
     global _registry, _registry_dict
-    if _registry is None:
+    if _registry is None or _registry_dict is None:
         _registry = load_provider_registry()
         _registry_dict = {p.provider_id: p for p in _registry}
     return _registry, _registry_dict
@@ -54,7 +54,7 @@ def _get_adapter(provider_id: str) -> ProviderAdapter:
     from ..providers.openrouter_adapter import OpenRouterAdapter
     from ..providers.qwen_adapter import QwenAdapter
 
-    adapters: dict[str, ProviderAdapter] = {
+    adapters = {
         "openai": OpenAIAdapter(),
         "anthropic": AnthropicAdapter(),
         "google_gemini": GoogleAdapter(),
@@ -295,18 +295,16 @@ def consensus_node(state: dict[str, Any]) -> dict[str, Any]:
     ]
     policy_warnings = []
     if winner:
+        winning_provider = registry_dict.get(winner.provider_id)
         policy_warnings = (
-            validate_provider_policy(registry_dict[winner.provider_id])
-            if winner.provider_id in registry_dict
-            else []
+            validate_provider_policy(winning_provider) if winning_provider is not None else []
         )
+    selected_provider = registry_dict.get(winner.provider_id) if winner else None
 
     s.routing_decision = RoutingDecision(
         selected_provider_id=winner.provider_id if winner else None,
-        selected_model=registry_dict[winner.provider_id].supported_models[0]
-        if winner
-        and winner.provider_id in registry_dict
-        and registry_dict[winner.provider_id].supported_models
+        selected_model=selected_provider.supported_models[0]
+        if selected_provider is not None and selected_provider.supported_models
         else None,
         reason=winner.reason if winner else "No provider passed consensus",
         rejected_provider_ids=rejected,

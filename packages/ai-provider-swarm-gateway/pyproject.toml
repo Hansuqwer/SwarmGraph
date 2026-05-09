@@ -35,6 +35,7 @@ dev = [
 
 [project.scripts]
 ai-provider-gateway = "ai_provider_swarm_gateway.cli:main"
+swarmgraph = "ai_provider_swarm_gateway.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

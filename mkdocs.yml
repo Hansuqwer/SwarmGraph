@@ -50,6 +50,7 @@ nav:
       - Audit Verification: operations/audit-verification.md
       - Cost Tracking: operations/cost-tracking.md
       - Deployment: operations/deployment.md
+      - GitHub Setup: operations/github-setup.md
       - Production Checklist: operations/production-checklist.md
       - Troubleshooting: operations/troubleshooting.md
   - History:

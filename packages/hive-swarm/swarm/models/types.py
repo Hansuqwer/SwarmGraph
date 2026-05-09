@@ -84,6 +84,7 @@ HistoryKind = Literal[
     "approval_request",
     "approval_decision",
     "approval_replay_blocked",  # F-19A
+    "scaling_cap",
     "sona_distill",
     "drift_detected",
     "split_brain_detected",  # F-21A

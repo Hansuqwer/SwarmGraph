@@ -7,7 +7,7 @@ issued tokens and operator decisions.
 from __future__ import annotations
 
 import secrets
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -16,7 +16,9 @@ from ..models.agent import ApprovalDecision
 from ..models.state import SwarmState
 
 try:
-    from langgraph.types import interrupt
+    from langgraph.types import interrupt as _interrupt
+
+    interrupt = cast(Any, _interrupt)
 
     _HAS_INTERRUPT = True
 except ImportError:  # pragma: no cover

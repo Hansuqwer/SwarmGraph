@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, Optional, Protocol
+from typing import Any, Optional, Protocol, cast
 
 from swarm_shared.pricing import DEFAULT_PRICING_TABLE, PricingTable
 
@@ -273,8 +273,9 @@ def _extract_text(resp):
         if isinstance(v, str) and v.strip():
             return v
         if v is not None:
-            if hasattr(v, "content") and isinstance(v.content, str) and v.content.strip():
-                return v.content
+            content = getattr(v, "content", None)
+            if isinstance(content, str) and content.strip():
+                return content
             if isinstance(v, dict):
                 inner = v.get("content")
                 if isinstance(inner, str) and inner.strip():
@@ -723,7 +724,7 @@ class GatewayDispatcher:
         index = 0
         last_finish = ""
         try:
-            for raw in stream:
+            for raw in cast(Iterable[Any], stream):
                 delta, finish = _normalise_stream_chunk(raw)
                 if delta:
                     accumulated += delta

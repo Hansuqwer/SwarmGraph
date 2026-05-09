@@ -35,6 +35,7 @@ dev = [
     "pyright>=1.1.380",
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.26",
+    "cyclonedx-python-lib[validation]>=11.7,<12",
 ]
 
 [tool.pytest.ini_options]
@@ -68,10 +69,11 @@ ignore = [
 "packages/ai-provider-swarm-gateway/src/ai_provider_swarm_gateway/providers/nine_router_adapter.py" = ["S310"]
 "packages/hive-swarm/swarm/llm/embeddings.py" = ["S310"]
 "scripts/benchmark_swarm.py" = ["S603"]
+"scripts/sync_github_labels.py" = ["S310"]
 
 [tool.pyright]
 pythonVersion = "3.11"
-typeCheckingMode = "off"
+typeCheckingMode = "basic"
 include = [
     "packages/swarm-shared/swarm_shared",
     "packages/hive-swarm/swarm",

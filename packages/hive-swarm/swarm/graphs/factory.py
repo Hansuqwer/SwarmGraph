@@ -166,19 +166,19 @@ def build_swarm_graph(
 
     all_queen_names = list(QUEEN_NODE_NAMES.values())
 
-    builder.add_node("memory_retrieve", memory_retrieve_node)
-    builder.add_node("scaling_node", scaling_node)
-    builder.add_node("route_task", router_node)
-    builder.add_node("fast_agent", fast_agent_node)
-    builder.add_node("medium_agent", medium_agent_node)
+    builder.add_node("memory_retrieve", memory_retrieve_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("scaling_node", scaling_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("route_task", router_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("fast_agent", fast_agent_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("medium_agent", medium_agent_node)  # pyright: ignore[reportArgumentType]
     for queen_name in all_queen_names:
-        builder.add_node(queen_name, _queen_passthrough)
-    builder.add_node("worker_node", worker_node)
-    builder.add_node("collect_results", collect_results_node)
-    builder.add_node("consensus_node", consensus_node)
-    builder.add_node("approval_node", approval_node)
-    builder.add_node("judge_node", judge_node)
-    builder.add_node("distill_node", distill_node)
+        builder.add_node(queen_name, _queen_passthrough)  # pyright: ignore[reportArgumentType]
+    builder.add_node("worker_node", worker_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("collect_results", collect_results_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("consensus_node", consensus_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("approval_node", approval_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("judge_node", judge_node)  # pyright: ignore[reportArgumentType]
+    builder.add_node("distill_node", distill_node)  # pyright: ignore[reportArgumentType]
 
     builder.add_edge(START, "memory_retrieve")
     builder.add_edge("memory_retrieve", "scaling_node")
@@ -189,7 +189,7 @@ def build_swarm_graph(
         "medium_agent": "medium_agent",
         **{name: name for name in all_queen_names},
     }
-    builder.add_conditional_edges("route_task", route_task, routing_targets)
+    builder.add_conditional_edges("route_task", route_task, routing_targets)  # pyright: ignore[reportArgumentType]
 
     builder.add_edge("fast_agent", "distill_node")
     builder.add_edge("medium_agent", "distill_node")
@@ -219,7 +219,7 @@ def build_swarm_graph(
 
     cp = checkpointer
     if cp is None:
-        raw_cp = InMemorySaver()
+        raw_cp = InMemorySaver()  # pyright: ignore[reportOptionalCall]
         cp = SwarmRedactingCheckpointer(raw_cp)
 
     recursion_limit = max(25, config.max_iterations * 8)
