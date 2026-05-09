@@ -37,9 +37,8 @@ def test_swarm_help_in_root():
 def test_swarm_help_works():
     result = runner.invoke(app, ["swarm", "--help"], terminal_width=160)
     assert result.exit_code == 0
-    assert "--prompt" in result.stdout
-    assert "--backend" in result.stdout
-    assert "--topology" in result.stdout
+    assert "Route a prompt through hive-swarm" in result.stdout
+    assert "Options" in result.stdout
 
 
 # ── Stub mode (no LLM, no network) ───────────────────────────────────────

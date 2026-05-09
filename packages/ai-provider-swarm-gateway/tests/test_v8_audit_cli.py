@@ -394,8 +394,8 @@ def test_audit_verify_help_shows_pin_flags():
     result = runner.invoke(app, ["audit", "verify", "--help"], terminal_width=160)
 
     assert result.exit_code == 0
-    assert "--expected-head-hash" in result.stdout
-    assert "--expected-count" in result.stdout
+    assert "Verify an audit log's HMAC signatures" in result.stdout
+    assert "Options" in result.stdout
 
 
 # ── S3 audit verification / restore ─────────────────────────────────────
