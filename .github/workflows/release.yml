@@ -9,7 +9,35 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run release gates
+        run: |
+          uv run ruff check packages/
+          uv run ruff format --check packages/
+          uv run pyright
+          uv run pytest packages/swarm-shared/tests packages/hive-swarm/tests packages/ai-provider-swarm-gateway/tests --tb=short -q
+          uv run python examples/01_smoke_stub_mode.py
+          uv run mkdocs build --strict
+          uv run pip-audit --desc --skip-editable
+          uv run bandit -r packages/swarm-shared/swarm_shared packages/hive-swarm/swarm packages/ai-provider-swarm-gateway/src -f screen
+
   build:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -31,6 +59,17 @@ jobs:
           uv run python scripts/generate_license_report.py --output dist/licenses.txt
           ls -lah dist
 
+      - name: Smoke-test built wheels
+        run: |
+          python -m venv /tmp/wheel-smoke
+          /tmp/wheel-smoke/bin/pip install --upgrade pip
+          /tmp/wheel-smoke/bin/pip install dist/swarm_shared-*.whl dist/hive_swarm-*.whl dist/ai_provider_swarm_gateway-*.whl
+          /tmp/wheel-smoke/bin/ai-provider-gateway --help
+          /tmp/wheel-smoke/bin/swarmgraph --help
+          /tmp/wheel-smoke/bin/ai-provider-gateway version
+          /tmp/wheel-smoke/bin/ai-provider-gateway audit --help
+          /tmp/wheel-smoke/bin/ai-provider-gateway mcp-toolbox --help
+
       - name: Upload dist
         uses: actions/upload-artifact@v4
         with:
@@ -39,7 +78,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -56,26 +95,8 @@ jobs:
         with:
           packages-dir: dist/
 
-  provenance:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: dist/*
-
   release:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -86,6 +107,18 @@ jobs:
         with:
           name: dist
           path: dist/
+
+      - name: Verify tag version matches package versions
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          for pkg in swarm-shared hive-swarm ai-provider-swarm-gateway; do
+            pkg_ver=$(grep -E '^version' "packages/$pkg/pyproject.toml" | head -1 | cut -d'"' -f2)
+            if [ "$pkg_ver" != "$VERSION" ]; then
+              echo "::error::Tag $VERSION does not match $pkg version $pkg_ver"
+              exit 1
+            fi
+          done
 
       - name: Extract changelog section
         id: changelog
