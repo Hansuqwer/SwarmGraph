@@ -15,6 +15,9 @@ from typing import Any
 
 import typer
 
+from .mcp_allowlist import WorkspaceNotAllowed, enforce_allowed_path
+from .observability import increment_counter, log_event
+
 app = typer.Typer(
     name="mcp-toolbox",
     help="Optional MCP toolbox helpers for SwarmGraph + Flutter workflows.",
@@ -50,7 +53,12 @@ def toolbox_manifest() -> dict[str, Any]:
 
 def flutter_project_summary(root: str = ".") -> dict[str, Any]:
     """Return a safe, read-only Flutter project summary."""
-    project_root = Path(root).expanduser().resolve()
+    try:
+        project_root = enforce_allowed_path(root)
+    except WorkspaceNotAllowed as exc:
+        increment_counter("mcp_tool_rejects_total")
+        log_event("mcp.tool.reject", level="warning", tool="flutter_project_summary", reason=str(exc))
+        return {"ok": False, "error": "workspace_not_allowed", "detail": str(exc)}
     pubspec = project_root / "pubspec.yaml"
     lib_dir = project_root / "lib"
     test_dir = project_root / "test"
@@ -66,12 +74,24 @@ def flutter_project_summary(root: str = ".") -> dict[str, Any]:
 
 def run_flutter_analyze(root: str = ".") -> dict[str, Any]:
     """Run ``flutter analyze`` without shell expansion."""
+    try:
+        project_root = enforce_allowed_path(root)
+    except WorkspaceNotAllowed as exc:
+        increment_counter("mcp_tool_rejects_total")
+        log_event("mcp.tool.reject", level="warning", tool="run_flutter_analyze", reason=str(exc))
+        return {
+            "ok": False,
+            "exit_code": 2,
+            "stdout": "",
+            "stderr": str(exc),
+            "error": "workspace_not_allowed",
+        }
     flutter = shutil.which("flutter")
     if flutter is None:
         return {"ok": False, "exit_code": 127, "stdout": "", "stderr": "flutter not found"}
     proc = subprocess.run(  # noqa: S603 # nosec B603 - fixed executable path, no shell.
         [flutter, "analyze"],
-        cwd=str(Path(root).expanduser().resolve()),
+        cwd=str(project_root),
         text=True,
         capture_output=True,
         timeout=120,

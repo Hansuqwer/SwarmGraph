@@ -1,0 +1,36 @@
+title = "SwarmGraph Flutter-aware secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "flutter-firebase-options-api-key"
+description = "Firebase API key embedded in Flutter firebase_options.dart"
+regex = '''apiKey\s*[:=]\s*["'](AIza[0-9A-Za-z_\-]{20,})["']'''
+secretGroup = 1
+path = '''firebase_options\.dart$'''
+keywords = ["apiKey", "AIza"]
+
+[[rules]]
+id = "flutter-android-key-properties"
+description = "Android signing key.properties secret"
+regex = '''(?i)(storePassword|keyPassword)\s*=\s*([^\s#]+)'''
+secretGroup = 2
+path = '''(^|/)key\.properties$'''
+keywords = ["storePassword", "keyPassword"]
+
+[[rules]]
+id = "apple-private-key-mobile-artifact"
+description = "Apple private key material in mobile signing files"
+regex = '''-----BEGIN PRIVATE KEY-----'''
+path = '''(\.p8|\.p12|GoogleService-Info\.plist)$'''
+keywords = ["PRIVATE KEY"]
+
+[[allowlists]]
+description = "Examples, docs, and tests may contain fake secret-shaped strings."
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)docs/''',
+  '''(^|/)tests/''',
+  '''(^|/)docs/history/''',
+]

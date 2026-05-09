@@ -38,6 +38,22 @@ def create_vault_key(path: Path | str = DEFAULT_KEY_PATH) -> str:
     return key
 
 
+def vault_key_available(key_path: Path | str | None = DEFAULT_KEY_PATH) -> bool:
+    """Return whether a vault key is available without exposing its value."""
+    if os.environ.get(VAULT_KEY_ENV):
+        return True
+    return key_path is not None and Path(key_path).exists()
+
+
+def verify_vault_file(
+    path: Path | str,
+    *,
+    key_path: Path | str | None = DEFAULT_KEY_PATH,
+) -> None:
+    """Force Fernet decrypt/JSON parse of an encrypted vault file."""
+    SecretStore(path, key_path=key_path).to_summary()
+
+
 class SecretStore:
     """Fail-closed encrypted account store.
 
@@ -135,4 +151,6 @@ __all__ = [
     "SecretStore",
     "VaultError",
     "create_vault_key",
+    "vault_key_available",
+    "verify_vault_file",
 ]

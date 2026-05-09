@@ -194,3 +194,111 @@ def test_pool_sync_pull_is_atomic_and_requires_confirm_for_overwrite(monkeypatch
     assert pulled.exit_code == 0
     assert vault_path.read_bytes() == b"new-vault"
     assert calls["download"][0:2] == ("bucket", "vault.enc")
+
+
+def test_pool_sync_pull_validates_downloaded_vault_when_key_available(monkeypatch, tmp_path):
+    key_path = tmp_path / "vault.key"
+    create_vault_key(key_path)
+    vault_path = tmp_path / "secrets.json.enc"
+    old = SecretStore(vault_path, key_path=key_path)
+    old.add_key("openai", "old", "old-secret")
+    incoming = tmp_path / "incoming.enc"
+    new = SecretStore(incoming, key_path=key_path)
+    new.add_key("openai", "new", "new-secret")
+
+    class _S3:
+        def download_file(self, bucket, key, filename, Config=None):
+            with open(filename, "wb") as fh:
+                fh.write(incoming.read_bytes())
+
+    class _TransferConfig:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    import sys
+    import types
+
+    boto3_mod = types.ModuleType("boto3")
+    boto3_mod.client = lambda name: _S3()
+    transfer_mod = types.ModuleType("boto3.s3.transfer")
+    transfer_mod.TransferConfig = _TransferConfig
+    s3_mod = types.ModuleType("boto3.s3")
+    s3_mod.transfer = transfer_mod
+    monkeypatch.setitem(sys.modules, "boto3", boto3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3", s3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3.transfer", transfer_mod)
+
+    result = runner.invoke(
+        app,
+        [
+            "tenants",
+            "pool",
+            "sync",
+            "--bucket",
+            "bucket",
+            "--key",
+            "vault.enc",
+            "--vault-path",
+            str(vault_path),
+            "--key-path",
+            str(key_path),
+            "--pull",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert SecretStore(vault_path, key_path=key_path).to_summary() == {"openai": ["new"]}
+
+
+def test_pool_sync_pull_corrupt_vault_keeps_old_when_key_available(monkeypatch, tmp_path):
+    key_path = tmp_path / "vault.key"
+    create_vault_key(key_path)
+    vault_path = tmp_path / "secrets.json.enc"
+    old = SecretStore(vault_path, key_path=key_path)
+    old.add_key("openai", "old", "old-secret")
+    old_bytes = vault_path.read_bytes()
+
+    class _S3:
+        def download_file(self, bucket, key, filename, Config=None):
+            with open(filename, "wb") as fh:
+                fh.write(b"not-a-fernet-vault")
+
+    class _TransferConfig:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    import sys
+    import types
+
+    boto3_mod = types.ModuleType("boto3")
+    boto3_mod.client = lambda name: _S3()
+    transfer_mod = types.ModuleType("boto3.s3.transfer")
+    transfer_mod.TransferConfig = _TransferConfig
+    s3_mod = types.ModuleType("boto3.s3")
+    s3_mod.transfer = transfer_mod
+    monkeypatch.setitem(sys.modules, "boto3", boto3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3", s3_mod)
+    monkeypatch.setitem(sys.modules, "boto3.s3.transfer", transfer_mod)
+
+    result = runner.invoke(
+        app,
+        [
+            "tenants",
+            "pool",
+            "sync",
+            "--bucket",
+            "bucket",
+            "--key",
+            "vault.enc",
+            "--vault-path",
+            str(vault_path),
+            "--key-path",
+            str(key_path),
+            "--pull",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert vault_path.read_bytes() == old_bytes

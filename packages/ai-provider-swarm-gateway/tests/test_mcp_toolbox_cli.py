@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from ai_provider_swarm_gateway.cli import app
+from ai_provider_swarm_gateway.mcp_allowlist import ENV_VAR
 from ai_provider_swarm_gateway.mcptoolbox import flutter_project_summary, toolbox_manifest
 from typer.testing import CliRunner
 
@@ -37,10 +38,11 @@ def test_mcp_toolbox_config_includes_dart_and_swarmgraph():
     ]
 
 
-def test_mcp_toolbox_manifest_and_project_summary(tmp_path):
+def test_mcp_toolbox_manifest_and_project_summary(monkeypatch, tmp_path):
     (tmp_path / "pubspec.yaml").write_text("name: app\n")
     (tmp_path / "lib").mkdir()
     (tmp_path / "lib" / "main.dart").write_text("void main() {}\n")
+    monkeypatch.setenv(ENV_VAR, str(tmp_path))
 
     manifest = toolbox_manifest()
     summary = flutter_project_summary(str(tmp_path))

@@ -19,17 +19,48 @@ Use `swarmgraph` when you want the project-branded alias; use
 ## Optional MCP toolbox
 
 The MCP toolbox is an optional CLI surface for AI-assisted Flutter/mobile
-workflows. Install the optional SDK integration when you need to run the stdio
-MCP server:
+workflows. Install the optional Flutter extra when you need to run the stdio
+MCP server or Flutter tool workflow:
 
 ```bash
-pip install 'ai-provider-swarm-gateway[mcp-toolbox]'
+pip install 'ai-provider-swarm-gateway[flutter]'
 ai-provider-gateway mcp-toolbox serve
 ```
 
 The read-only helper commands (`tools`, `doctor`, `config`) are safe to run
 without live provider credentials. The `serve` command imports the MCP SDK only
 when explicitly invoked.
+
+Path-based MCP tools fail closed unless `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS`
+is set. Use a comma-separated list for Flutter app roots:
+
+```bash
+export AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS="$HOME/code/app1,$HOME/code/app2"
+uv run ai-provider-gateway mcp-toolbox tools --json
+uv run ai-provider-gateway mcp-toolbox doctor --json
+uv run ai-provider-gateway mcp-toolbox config
+uv run ai-provider-gateway mcp-toolbox serve
+```
+
+MCP clients can then call `flutter_project_summary` and `run_flutter_analyze`
+for paths under the configured roots. Calls outside those roots return
+`workspace_not_allowed` and never execute `flutter analyze`.
+
+## Flutter local workflow
+
+```bash
+pip install 'ai-provider-swarm-gateway[flutter]'
+uv run ai-provider-gateway tenants pool init
+uv run ai-provider-gateway tenants pool add 9router dev --secret "$AI_PROVIDER_GATEWAY_9ROUTER_API_KEY"
+uv run ai-provider-gateway tenants pool list
+export AI_PROVIDER_GATEWAY_9ROUTER_API_KEY="..."
+export AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS="$HOME/code/my_flutter_app"
+uv run ai-provider-gateway mcp-toolbox serve
+```
+
+Back up both `~/.ai_provider_gateway/vault.key` and
+`~/.ai_provider_gateway/secrets.json.enc`; the encrypted vault is not useful
+without its key.
 
 ## Command surface
 
@@ -67,6 +98,7 @@ Secret and audit commands:
 - `AI_PROVIDER_GATEWAY_USAGE_PATH` overrides quota storage. In production wrappers, point it at a persistent state directory and do not source it from untrusted input.
 - Set `AI_PROVIDER_GATEWAY_STATE_DIR` to require `--storage` and `AI_PROVIDER_GATEWAY_USAGE_PATH` to resolve inside that directory.
 - `tenants pool sync --pull` downloads to a temporary file and atomically replaces the local vault. If the vault already exists, confirm overwrite or pass `--yes`.
+- `tenants pool sync --pull` decrypt-checks the downloaded vault before replacement when a vault key is available; corrupt downloads keep the existing local vault.
 - Prefer `AI_PROVIDER_GATEWAY_9ROUTER_API_KEY` for 9router. `OPENAI_API_KEY` is used by 9router only when `AI_PROVIDER_GATEWAY_9ROUTER_ALLOW_OPENAI_KEY` is truthy.
 - Use `AI_PROVIDER_GATEWAY_9ROUTER_ALLOWED_HOSTS` to pin allowed 9router hosts when using a non-local base URL.
-- Treat `mcp-toolbox serve` as a local trusted developer surface; `run_flutter_analyze` executes the local `flutter` binary in the requested project root.
+- Treat `mcp-toolbox serve` as a local developer surface; path-based tools require `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS`.

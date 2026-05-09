@@ -44,6 +44,9 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
+flutter = [
+    { name = "mcp" },
+]
 langgraph = [
     { name = "langgraph" },
     { name = "langgraph-checkpoint" },
@@ -69,6 +72,7 @@ requires-dist = [
     { name = "cryptography", marker = "extra == 'vault'", specifier = ">=42,<47" },
     { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=0.3,<2" },
     { name = "langgraph-checkpoint", marker = "extra == 'langgraph'", specifier = ">=4.0.0,<5" },
+    { name = "mcp", marker = "extra == 'flutter'", specifier = ">=1.9,<2" },
     { name = "mcp", marker = "extra == 'mcp-toolbox'", specifier = ">=1.9,<2" },
     { name = "plotext", marker = "extra == 'tui'", specifier = ">=5,<6" },
     { name = "psutil", marker = "extra == 'tui'", specifier = ">=5,<8" },
@@ -82,7 +86,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.80,<1" },
     { name = "typer", specifier = ">=0.12,<1" },
 ]
-provides-extras = ["yaml", "tui", "vault", "browser-auth", "mcp-toolbox", "langgraph", "dev"]
+provides-extras = ["yaml", "tui", "vault", "browser-auth", "mcp-toolbox", "flutter", "langgraph", "dev"]
 
 [[package]]
 name = "aiosqlite"

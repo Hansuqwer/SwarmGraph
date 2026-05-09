@@ -491,6 +491,7 @@ def pool_sync(
     push: bool = typer.Option(False, "--push"),
     pull: bool = typer.Option(False, "--pull"),
     confirm: bool = typer.Option(False, "--yes", "-y", help="Overwrite existing local vault on pull."),
+    key_path: Path | None = typer.Option(None, "--key-path"),
 ) -> None:
     """Push/pull the encrypted vault blob to S3. Secrets are not logged."""
     if push == pull:
@@ -500,7 +501,12 @@ def pool_sync(
         import boto3  # type: ignore[import-not-found]
         from boto3.s3.transfer import TransferConfig  # type: ignore[import-not-found]
 
-        from .quota.pool import DEFAULT_VAULT_PATH
+        from .quota.pool import (
+            DEFAULT_KEY_PATH,
+            DEFAULT_VAULT_PATH,
+            vault_key_available,
+            verify_vault_file,
+        )
 
         path = vault_path or DEFAULT_VAULT_PATH
         config = TransferConfig(
@@ -522,6 +528,15 @@ def pool_sync(
             tmp_path = path.with_name(f".{path.name}.download")
             s3.download_file(bucket, key, str(tmp_path), Config=config)
             os.chmod(tmp_path, 0o600)
+            resolved_key_path = key_path or DEFAULT_KEY_PATH
+            if vault_key_available(resolved_key_path):
+                try:
+                    verify_vault_file(tmp_path, key_path=resolved_key_path)
+                except Exception as exc:
+                    tmp_path.unlink(missing_ok=True)
+                    raise RuntimeError(
+                        "downloaded vault failed decrypt sanity-check; keeping existing vault"
+                    ) from exc
             os.replace(tmp_path, path)
             os.chmod(path, 0o600)
             _print_plain(f"pulled encrypted vault from s3://{bucket}/{key}")

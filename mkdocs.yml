@@ -47,6 +47,10 @@ nav:
       - Environment Variables: reference/env-vars.md
   - Operations:
       - Security: operations/security.md
+      - Secret Scanning: operations/secret-scanning.md
+      - Flutter Local Agent Profile: operations/flutter-local-agent-profile.md
+      - Vault Backup And Restore: operations/vault-backup-restore.md
+      - Flutter Local Agent Handover: operations/flutter-local-agent-handover.md
       - Audit Verification: operations/audit-verification.md
       - Cost Tracking: operations/cost-tracking.md
       - Deployment: operations/deployment.md

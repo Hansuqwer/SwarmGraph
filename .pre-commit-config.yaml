@@ -4,3 +4,8 @@ repos:
     hooks:
       - id: ruff
       - id: ruff-format
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        args: ["protect", "--staged", "--redact", "--config=.gitleaks.toml"]

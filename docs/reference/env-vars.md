@@ -10,6 +10,7 @@
 | `HIVE_SWARM_COST_TRACKING` | Enable/disable cost tracking |
 | `HIVE_SWARM_AUDIT_SECRET` | HMAC secret for audit signing |
 | `AI_PROVIDER_GATEWAY_REVIEWER_ID` | Reviewer id for HITL CLI prompts |
+| `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS` | Comma- or path-separator-delimited roots allowed for path-based MCP toolbox calls |
 | `AI_PROVIDER_GATEWAY_STATE_DIR` | Optional production confinement base for CLI quota storage paths |
 | `AI_PROVIDER_GATEWAY_USAGE_PATH` | Override local quota usage JSON path |
 | `AI_PROVIDER_GATEWAY_VAULT_KEY` | Fernet key for encrypted account vault |
