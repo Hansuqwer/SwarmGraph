@@ -3,14 +3,19 @@
 | Variable | Purpose |
 |---|---|
 | `AI_PROVIDER_GATEWAY_TENANT` | Default tenant scope |
+| `AI_PROVIDER_GATEWAY_CACHE_SHARED_MODE` | Require tenant-scoped semantic cache reads/writes when truthy |
 | `HIVE_SWARM_LLM_BACKEND` | `stub` or `gateway` |
 | `HIVE_SWARM_LLM_PROVIDER` | Default gateway provider id |
 | `HIVE_SWARM_LLM_MODEL` | Default gateway model id |
 | `HIVE_SWARM_LLM_STREAM` | Enable streaming worker dispatch |
 | `HIVE_SWARM_COST_TRACKING` | Enable/disable cost tracking |
 | `HIVE_SWARM_AUDIT_SECRET` | HMAC secret for audit signing |
+| `HIVE_SWARM_AUDIT_SIGNING_ENABLED` | Production preflight expects truthy audit signing |
+| `HIVE_SWARM_AUDIT_FAIL_CLOSED` | Production preflight expects truthy audit fail-closed mode |
+| `HIVE_SWARM_AUDIT_LOG_PATH` | Production preflight expects `{tenant}` and `{swarm_id}` placeholders |
+| `HIVE_SWARM_AUDIT_FSYNC_ENABLED` | Optional regulated-mode JSONL fsync flag |
 | `AI_PROVIDER_GATEWAY_REVIEWER_ID` | Reviewer id for HITL CLI prompts |
-| `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS` | Comma- or path-separator-delimited roots allowed for path-based MCP toolbox calls |
+| `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS` | Comma-delimited roots allowed for path-based MCP toolbox calls |
 | `AI_PROVIDER_GATEWAY_STATE_DIR` | Optional production confinement base for CLI quota storage paths |
 | `AI_PROVIDER_GATEWAY_USAGE_PATH` | Override local quota usage JSON path |
 | `AI_PROVIDER_GATEWAY_VAULT_KEY` | Fernet key for encrypted account vault |

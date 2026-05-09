@@ -43,6 +43,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import sys
 import time
 from collections.abc import Iterable, Iterator
@@ -283,7 +284,7 @@ def verify_chain(
 # ── JSONL persistence ────────────────────────────────────────────────────
 
 
-def append_jsonl(path: Path, record: AuditRecord) -> None:
+def append_jsonl(path: Path, record: AuditRecord, *, fsync: bool = False) -> None:
     """Append a single record to a JSONL file. Atomic per-line append.
 
     Uses O_APPEND open mode + a single write() call — POSIX guarantees
@@ -309,6 +310,8 @@ def append_jsonl(path: Path, record: AuditRecord) -> None:
             with open(path, "a", encoding="utf-8") as fh:
                 fh.write(line)
                 fh.flush()
+                if fsync:
+                    os.fsync(fh.fileno())
         finally:
             _unlock_file(lock_fh)
 

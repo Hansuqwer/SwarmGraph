@@ -140,6 +140,10 @@ class SwarmConfig(FrozenModel):
             "or signing failure instead of recording an error and continuing."
         ),
     )
+    audit_fsync_enabled: bool = Field(
+        default=False,
+        description="Call fsync after JSONL audit appends. Regulated/high-assurance only.",
+    )
 
     # ── v8: Streaming HITL ────────────────────────────────────────────────
     streaming_guard_patterns: list[str] = Field(

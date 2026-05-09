@@ -71,11 +71,17 @@ audit_app = typer.Typer(
     help="Verify HMAC-SHA256-signed audit logs.",
     no_args_is_help=True,
 )
+profile_app = typer.Typer(
+    name="profile",
+    help="Deployment profile preflight checks.",
+    no_args_is_help=True,
+)
 app.add_typer(quota_app)
 app.add_typer(providers_app)
 app.add_typer(tenants_app)
 app.add_typer(auth_app)
 app.add_typer(audit_app)
+app.add_typer(profile_app)
 app.add_typer(mcptoolbox_app)
 tenants_app.add_typer(pool_app)
 
@@ -140,6 +146,22 @@ def _err(text: str) -> None:
         print(text, file=sys.stderr)
 
 
+def _assert_production_profile(env: dict[str, str]) -> list[str]:
+    errors: list[str] = []
+    if not env.get("AI_PROVIDER_GATEWAY_TENANT", "").strip():
+        errors.append("AI_PROVIDER_GATEWAY_TENANT is required")
+    if not env.get("HIVE_SWARM_AUDIT_SECRET", ""):
+        errors.append("HIVE_SWARM_AUDIT_SECRET is required")
+    if env.get("HIVE_SWARM_AUDIT_SIGNING_ENABLED", "").lower() not in {"1", "true", "yes", "on"}:
+        errors.append("HIVE_SWARM_AUDIT_SIGNING_ENABLED must be true")
+    if env.get("HIVE_SWARM_AUDIT_FAIL_CLOSED", "").lower() not in {"1", "true", "yes", "on"}:
+        errors.append("HIVE_SWARM_AUDIT_FAIL_CLOSED must be true")
+    audit_path = env.get("HIVE_SWARM_AUDIT_LOG_PATH", "")
+    if "{tenant}" not in audit_path or "{swarm_id}" not in audit_path:
+        errors.append("HIVE_SWARM_AUDIT_LOG_PATH must include {tenant} and {swarm_id}")
+    return errors
+
+
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhd])$")
 _SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
 
@@ -189,6 +211,28 @@ def _load_s3_audit_backend_class():
 
 
 # ── version ────────────────────────────────────────────────────────────────
+
+
+@profile_app.command("production")
+def profile_production(
+    check: bool = typer.Option(False, "--check", help="Run production profile preflight."),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Validate env needed for hosted production audit posture."""
+    if not check:
+        raise typer.BadParameter("pass --check to run the production preflight")
+    errors = _assert_production_profile(dict(os.environ))
+    if errors:
+        if json_output:
+            print(json.dumps({"ok": False, "errors": errors}, indent=2))
+        else:
+            for error in errors:
+                _err(error)
+        raise typer.Exit(2)
+    if json_output:
+        print(json.dumps({"ok": True}, indent=2))
+    else:
+        _print_plain("production profile ok")
 
 
 @app.command()
