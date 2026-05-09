@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .audit import AuditRecord, append_jsonl, load_jsonl_chain
+from .audit import _assert_append_boundary as assert_append_boundary
 
 
 class AuditBackend(Protocol):
@@ -163,6 +164,12 @@ class S3AuditBackend:
                 if not self._is_not_found(exc):
                     raise
 
+            current_records = [
+                AuditRecord.model_validate_json(item)
+                for item in current.splitlines()
+                if item.strip()
+            ]
+            assert_append_boundary(current_records, record)
             kwargs: dict[str, Any] = {
                 "Bucket": self.bucket,
                 "Key": key,

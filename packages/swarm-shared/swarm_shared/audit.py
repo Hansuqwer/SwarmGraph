@@ -299,6 +299,8 @@ def append_jsonl(path: Path, record: AuditRecord) -> None:
             f"reduce payload size or use a different persistence backend"
         )
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        _assert_append_boundary(load_jsonl_chain(path), record)
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(line)
         fh.flush()
@@ -323,11 +325,29 @@ def load_jsonl_chain(path: Path) -> list[AuditRecord]:
     return records
 
 
+def _assert_append_boundary(records: list[AuditRecord], record: AuditRecord) -> None:
+    tail = next((item for item in reversed(records) if item.swarm_id == record.swarm_id), None)
+    if tail is None:
+        if record.sequence != 0 or record.prev_hash != GENESIS_PREV_HASH:
+            raise AuditChainBroken("append boundary mismatch: new chain must start at sequence 0")
+        return
+    expected_sequence = tail.sequence + 1
+    if record.sequence != expected_sequence or record.prev_hash != tail.record_hash:
+        raise AuditChainBroken(
+            "append boundary mismatch: "
+            f"expected sequence={expected_sequence} prev_hash={tail.record_hash[:16]}..., "
+            f"got sequence={record.sequence} prev_hash={record.prev_hash[:16]}..."
+        )
+
+
 # ── Convenience: stateful chain builder ──────────────────────────────────
 
 
 class AuditChain:
     """Stateful helper that tracks chain head + sequence for you.
+
+    Existing ``jsonl_path`` records for the same swarm are verified with
+    ``secret`` before resuming from the persisted tail.
 
     Usage:
         chain = AuditChain(swarm_id="s1", secret="...", tenant_id="alice",
@@ -355,6 +375,15 @@ class AuditChain:
         self._prev_hash = initial_prev_hash
         self._sequence = 0
         self.records: list[AuditRecord] = []
+        if jsonl_path is not None and jsonl_path.exists():
+            existing = [
+                record for record in load_jsonl_chain(jsonl_path) if record.swarm_id == swarm_id
+            ]
+            if existing:
+                verify_chain(existing, secret=secret, initial_prev_hash=initial_prev_hash)
+                self.records = existing
+                self._prev_hash = existing[-1].record_hash
+                self._sequence = existing[-1].sequence + 1
 
     @property
     def head_hash(self) -> str:
@@ -376,11 +405,11 @@ class AuditChain:
             prev_hash=self._prev_hash,
             secret=self.secret,
         )
+        if self.jsonl_path:
+            append_jsonl(self.jsonl_path, record)
         self.records.append(record)
         self._prev_hash = record.record_hash
         self._sequence += 1
-        if self.jsonl_path:
-            append_jsonl(self.jsonl_path, record)
         return record
 
     def verify(

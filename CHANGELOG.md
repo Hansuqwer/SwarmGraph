@@ -27,6 +27,8 @@ Each version links to its milestone doc and handover notes in
   records before the related `worker_result`.
 - S3 audit append now uses conditional create for missing audit objects to
   reduce first-writer lost-update races.
+- JSONL and S3 audit append now reject sequence/hash boundary mismatches before
+  extending persisted audit logs.
 - Browser auth import now requires provider cookie domain suffix matches.
 - 9router base URL validation now rejects non-loopback HTTP URLs.
 - Gateway dispatcher now forwards `timeout_seconds` to adapters that accept it

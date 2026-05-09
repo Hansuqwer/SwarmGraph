@@ -13,15 +13,14 @@ def test_release_workflow_extracts_changelog_notes_safely() -> None:
     assert "printf '%s\\n' \"$NOTES\"" in text
 
 
-def test_release_workflow_attests_dist_artifacts() -> None:
+def test_release_workflow_uses_trusted_publishing_attestations() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     workflow = repo_root / ".github" / "workflows" / "release.yml"
     text = workflow.read_text(encoding="utf-8")
 
-    assert "actions/attest-build-provenance@v3" in text
-    assert "attestations: write" in text
+    assert "pypa/gh-action-pypi-publish@release/v1" in text
+    assert "actions/attest-build-provenance" not in text
     assert "id-token: write" in text
-    assert "subject-path: dist/*" in text
 
 
 def test_release_workflow_publishes_supply_chain_artifacts() -> None:

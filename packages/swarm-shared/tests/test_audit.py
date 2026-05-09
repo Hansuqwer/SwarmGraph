@@ -457,6 +457,60 @@ def test_jsonl_oversized_record_rejected(tmp_path: Path):
         chain.append(kind="worker_result", payload=big)
 
 
+def test_audit_chain_jsonl_restart_continues_existing_chain(tmp_path: Path):
+    fp = tmp_path / "audit.jsonl"
+    first = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
+    r1 = first.append(kind="worker_result", payload={"i": 0})
+
+    second = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
+    r2 = second.append(kind="worker_result", payload={"i": 1})
+
+    loaded = load_jsonl_chain(fp)
+    assert [record.sequence for record in loaded] == [0, 1]
+    assert r2.prev_hash == r1.record_hash
+    assert verify_chain(loaded, secret=SECRET) == 2
+
+
+def test_jsonl_append_rejects_duplicate_genesis(tmp_path: Path):
+    fp = tmp_path / "audit.jsonl"
+    first = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
+    first.append(kind="worker_result", payload={"i": 0})
+
+    duplicate = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=0,
+        payload={"i": 1},
+        prev_hash=GENESIS_PREV_HASH,
+        secret=SECRET,
+    )
+
+    with pytest.raises(AuditChainBroken, match="append boundary mismatch"):
+        append_jsonl(fp, duplicate)
+
+
+def test_jsonl_resume_rejects_forged_tail_signed_with_wrong_secret(tmp_path: Path):
+    fp = tmp_path / "audit.jsonl"
+    chain = AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
+    first = chain.append(kind="worker_result", payload={"i": 0})
+    forged = sign_record(
+        kind="worker_result",
+        swarm_id="s1",
+        sequence=1,
+        payload={"i": 1},
+        prev_hash=first.record_hash,
+        secret=ALT_SECRET,
+    )
+
+    append_jsonl(fp, forged)
+
+    records = load_jsonl_chain(fp)
+    with pytest.raises(AuditChainBroken, match="signature mismatch"):
+        verify_chain(records, secret=SECRET)
+    with pytest.raises(AuditChainBroken, match="signature mismatch"):
+        AuditChain(swarm_id="s1", secret=SECRET, jsonl_path=fp)
+
+
 # ── Tampering on disk ──────────────────────────────────────────────────
 
 

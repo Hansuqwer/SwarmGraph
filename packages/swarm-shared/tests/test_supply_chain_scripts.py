@@ -30,10 +30,11 @@ source = { registry = "https://pypi.org/simple" }
     )
 
     output = tmp_path / "dist" / "sbom.cyclonedx.json"
-    script.write_sbom(lock_path, output)
+    script.write_sbom(lock_path, output, "0.8.1")
 
     data = json.loads(output.read_text(encoding="utf-8"))
     assert data["bomFormat"] == "CycloneDX"
+    assert data["metadata"]["component"]["version"] == "0.8.1"
     assert data["components"][0]["purl"] == "pkg:pypi/demo@1.2.3"
 
 

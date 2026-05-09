@@ -129,7 +129,7 @@ def test_s3_backend_uses_conditional_create_on_missing_object():
     assert client.put_attempts[key] == 1
 
 
-def test_s3_backend_retries_when_missing_key_create_races():
+def test_s3_backend_rejects_when_missing_key_create_races_with_duplicate_genesis():
     class _RacingCreateS3Client(_FakeS3Client):
         def put_object(self, **kwargs):
             obj_key = (kwargs["Bucket"], kwargs["Key"])
@@ -142,16 +142,24 @@ def test_s3_backend_retries_when_missing_key_create_races():
 
     client = _RacingCreateS3Client()
     backend = S3AuditBackend(bucket="audit-bucket", client=client)
-    first = _record(0)
-    second = _record(1, prev_hash=first.record_hash)
 
-    backend.append(second)
+    with pytest.raises(Exception, match="append boundary mismatch"):
+        backend.append(_record(0))
 
     key = ("audit-bucket", "audit/2026-05-08/s1.jsonl")
     stored = client.objects[key][0]
-    assert '"sequence":0' in stored
-    assert '"sequence":1' in stored
-    assert client.put_attempts[key] == 2
+    assert stored.count('"sequence":0') == 1
+    assert client.put_attempts[key] == 1
+
+
+def test_s3_backend_rejects_duplicate_genesis_on_existing_object():
+    client = _FakeS3Client()
+    backend = S3AuditBackend(bucket="audit-bucket", client=client)
+    first = _record(0)
+    backend.append(first)
+
+    with pytest.raises(Exception, match="append boundary mismatch"):
+        backend.append(_record(0))
 
 
 def test_s3_backend_loads_all_partitions_for_swarm_in_sequence_order():
