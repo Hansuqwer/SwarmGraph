@@ -46,7 +46,8 @@ def toolbox_manifest() -> dict[str, Any]:
         "name": "swarmgraph-mcptoolbox",
         "version": "0.1.0",
         "transport": "stdio",
-        "install_extra": "ai-provider-swarm-gateway[mcp-toolbox]",
+        "install_extra": "ai-provider-swarm-gateway[flutter]",
+        "compatibility_extras": ["mcp-toolbox"],
         "tools": list(_TOOLBOX_TOOLS),
     }
 
@@ -162,13 +163,14 @@ def serve() -> None:
     """Start the optional stdio MCP server.
 
     Requires the optional MCP SDK. Install with:
-    ``pip install ai-provider-swarm-gateway[mcp-toolbox]``.
+    ``pip install ai-provider-swarm-gateway[flutter]``.
     """
     try:
         from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
     except Exception as exc:  # pragma: no cover - optional dependency path
         raise typer.BadParameter(
-            "MCP SDK is not installed; install ai-provider-swarm-gateway[mcp-toolbox]"
+            "MCP SDK is not installed; install ai-provider-swarm-gateway[flutter] "
+            "(or legacy [mcp-toolbox])"
         ) from exc
 
     mcp = FastMCP("swarmgraph-mcptoolbox")

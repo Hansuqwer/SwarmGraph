@@ -47,6 +47,25 @@ def test_mcp_toolbox_manifest_and_project_summary(monkeypatch, tmp_path):
     manifest = toolbox_manifest()
     summary = flutter_project_summary(str(tmp_path))
 
-    assert manifest["install_extra"] == "ai-provider-swarm-gateway[mcp-toolbox]"
+    assert manifest["install_extra"] == "ai-provider-swarm-gateway[flutter]"
+    assert manifest["compatibility_extras"] == ["mcp-toolbox"]
     assert summary["pubspec_exists"] is True
     assert summary["dart_files"] == 1
+
+
+def test_mcp_toolbox_serve_error_mentions_flutter_first(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _import(name, *args, **kwargs):
+        if name.startswith("mcp"):
+            raise ModuleNotFoundError("mcp")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _import)
+    result = runner.invoke(app, ["mcp-toolbox", "serve"])
+
+    assert result.exit_code != 0
+    assert "ai-provider-swarm-gateway[flutter]" in result.output
+    assert "legacy [mcp-toolbox]" in result.output

@@ -27,10 +27,12 @@ path = '''(\.p8|\.p12|GoogleService-Info\.plist)$'''
 keywords = ["PRIVATE KEY"]
 
 [[allowlists]]
-description = "Examples, docs, and tests may contain fake secret-shaped strings."
+description = "Only explicit examples and known secret-shaped fixtures are allowed."
 paths = [
   '''(^|/)\.env\.example$''',
-  '''(^|/)docs/''',
-  '''(^|/)tests/''',
   '''(^|/)docs/history/''',
+  '''(^|/)docs/patches/''',
+  '''(^|/)site/patches/''',
+  '''(^|/)\.gitnexus/''',
+  '''(^|/)tests/fixtures/secret_shapes/''',
 ]

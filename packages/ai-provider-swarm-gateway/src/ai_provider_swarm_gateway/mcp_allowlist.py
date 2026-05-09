@@ -15,10 +15,9 @@ class WorkspaceNotAllowed(PermissionError):
 def _split_roots(raw: str) -> list[str]:
     roots: list[str] = []
     for comma_part in raw.split(","):
-        for part in comma_part.split(os.pathsep):
-            cleaned = part.strip()
-            if cleaned:
-                roots.append(cleaned)
+        cleaned = comma_part.strip()
+        if cleaned:
+            roots.append(cleaned)
     return roots
 
 

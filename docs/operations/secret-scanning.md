@@ -19,3 +19,8 @@ Flutter/mobile artifacts:
 
 Do not commit real `.env` files, vault files, mobile signing keys, or provider
 API keys. Keep `.env.example` values empty or fake.
+
+Allowlist scope is intentionally narrow: `.env.example`, archived/generated
+patches under `docs/history/`, `docs/patches/`, `site/patches/`, local
+GitNexus metadata, and named fake fixtures under
+`tests/fixtures/secret_shapes/`. Do not add blanket `docs/` or `tests/` skips.

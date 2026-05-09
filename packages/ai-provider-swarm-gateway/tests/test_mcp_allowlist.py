@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from ai_provider_swarm_gateway.mcp_allowlist import (
@@ -60,6 +61,17 @@ def test_mcp_allowlist_parses_csv(monkeypatch, tmp_path):
     monkeypatch.setenv(ENV_VAR, f"{first},{second}")
 
     assert allowed_roots() == (first.resolve(), second.resolve())
+
+
+def test_mcp_allowlist_does_not_split_on_pathsep(monkeypatch, tmp_path):
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    combined = f"{first}:{second}"
+    monkeypatch.setenv(ENV_VAR, combined)
+
+    assert allowed_roots() == (Path(combined).resolve(),)
 
 
 def test_run_flutter_analyze_rejects_before_subprocess(monkeypatch, tmp_path, capsys):

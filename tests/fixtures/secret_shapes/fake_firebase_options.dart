@@ -1,0 +1,3 @@
+const firebaseOptions = {
+  'apiKey': 'AIzaSyFakeFakeFakeFakeFakeFakeFakeFake',
+};

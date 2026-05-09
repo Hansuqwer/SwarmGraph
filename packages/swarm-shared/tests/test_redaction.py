@@ -118,7 +118,7 @@ def test_redact_obj_walks_deep_nesting():
 # ── Redactor class with high-entropy detection ─────────────────────────────
 def test_redactor_high_entropy_detects_long_random():
     r = Redactor(detect_high_entropy=True)
-    secret = "abc123XYZ_qrs789TUV456lmn-def-ghi-789"
+    secret = "abc123XYZ_qrs789TUV456lmn-def-ghi-789"  # gitleaks:allow
     out = r.redact_text(secret)
     assert out == REDACTED
 
