@@ -22,3 +22,14 @@ def test_release_workflow_attests_dist_artifacts() -> None:
     assert "attestations: write" in text
     assert "id-token: write" in text
     assert "subject-path: dist/*" in text
+
+
+def test_release_workflow_publishes_supply_chain_artifacts() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    workflow = repo_root / ".github" / "workflows" / "release.yml"
+    text = workflow.read_text(encoding="utf-8")
+
+    assert "python scripts/generate_sbom.py --output dist/sbom.cyclonedx.json" in text
+    assert "python scripts/generate_license_report.py --output dist/licenses.txt" in text
+    assert "path: dist/*" in text
+    assert "files: dist/*" in text

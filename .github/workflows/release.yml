@@ -23,6 +23,8 @@ jobs:
           uv build --package swarm-shared --out-dir dist
           uv build --package hive-swarm --out-dir dist
           uv build --package ai-provider-swarm-gateway --out-dir dist
+          python scripts/generate_sbom.py --output dist/sbom.cyclonedx.json
+          python scripts/generate_license_report.py --output dist/licenses.txt
           ls -lah dist
 
       - name: Upload dist

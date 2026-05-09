@@ -14,6 +14,7 @@ Includes:
     - HIVE_PATCH_AND_COMPLETE_PROMPT.md (the executed prompt)
     - HIVE_ORCHESTRATOR_ANALYSIS_PROMPT.md (the analysis prompt)
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -21,8 +22,17 @@ import sys
 import zipfile
 from pathlib import Path
 
-EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-                ".git", ".venv", "venv", "node_modules", ".egg-info"}
+EXCLUDE_DIRS = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".egg-info",
+}
 EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
 
 
@@ -77,8 +87,10 @@ def main() -> int:
                 total += 1
 
         # 3) The two orchestrator prompts (top-level reference)
-        for prompt_file in ("HIVE_PATCH_AND_COMPLETE_PROMPT.md",
-                            "HIVE_ORCHESTRATOR_ANALYSIS_PROMPT.md"):
+        for prompt_file in (
+            "HIVE_PATCH_AND_COMPLETE_PROMPT.md",
+            "HIVE_ORCHESTRATOR_ANALYSIS_PROMPT.md",
+        ):
             p = here / prompt_file
             if p.exists():
                 zf.write(p, arcname=prompt_file)

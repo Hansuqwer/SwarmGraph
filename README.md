@@ -9,13 +9,17 @@ A Pydantic-strict, voting-based, audit-first LangGraph runtime for regulated or 
 SwarmGraph is not an OpenAI-Swarm-style handoff framework. It is a Pydantic-strict, voting-based, audit-first LangGraph runtime for parallel agent deliberation, consensus, HITL approval, and signed execution records.
 
 
-If you need…	Use
-Tool-call handoff between conversational specialists	langgraph-swarm / raw LangGraph
-Sequential agent relay with active-agent memory	langgraph-swarm
-Typed fan-out, votes, consensus, HITL, audit chain	SwarmGraph
-Simple single-agent chatbot	Not SwarmGraph
-Heavy tool-use agent framework	Raw LangGraph / LangChain Agents / CrewAI-style framework
+## When to Use SwarmGraph
 
+| Question | Use |
+|---|---|
+| Need conversational handoff between specialists? | `langgraph-swarm` or raw LangGraph |
+| Need sequential agent relay with active-agent memory? | `langgraph-swarm` |
+| Need typed fan-out, votes, consensus, HITL, and audit chains? | SwarmGraph |
+| Need a simple single-agent chatbot? | Not SwarmGraph |
+| Need a broad tool-use agent framework? | Raw LangGraph, LangChain Agents, or CrewAI-style frameworks |
+
+Decision flow: single chatbot → not SwarmGraph; conversational handoff → `langgraph-swarm`; typed consensus plus auditable execution → SwarmGraph.
 
 ---
 
@@ -113,6 +117,8 @@ uv run ai-provider-gateway auth import-browser chatgpt --vault-path ~/.ai_provid
 ## Documentation
 
 Full docs at [docs/](docs/) (mkdocs-material site — run `make serve-docs`).
+
+`docs/` contains user-facing reference material. `docs/history/` is a provenance and process archive; it is useful for audit review but not required reading for normal users.
 
 Key pages:
 - [Getting started](docs/getting-started/installation.md)
