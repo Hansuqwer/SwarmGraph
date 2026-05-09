@@ -34,6 +34,7 @@ uv run pytest packages/
 
 # 3. Try the CLI
 uv run ai-provider-gateway --help
+uv run swarmgraph --help  # alias for ai-provider-gateway
 uv run ai-provider-gateway swarm --prompt "implement add(a,b)" --anti-drift off --max-agents 3 --json
 
 # Optional local dashboard
@@ -48,10 +49,9 @@ For gateway-backed execution with a live model:
 
 ```bash
 HIVE_SWARM_LLM_BACKEND=gateway \
-AI_PROVIDER_GATEWAY_9ROUTER_API_KEY=<your-key> \
 uv run ai-provider-gateway swarm \
   --prompt "implement add(a,b)" \
-  --backend gateway --provider 9router --model kc/kilo-auto/free \
+  --backend gateway --provider <provider-id> --model <model-id> \
   --anti-drift off --max-agents 3 --json
 ```
 
@@ -67,7 +67,7 @@ uv run ai-provider-gateway swarm \
 │  │ swarm-shared │   │  hive-swarm  │   │  gateway   │  │
 │  │              │◄──│              │◄──│            │  │
 │  │ Pydantic     │   │ Queen/Worker │   │ CLI + quota│  │
-│  │ primitives   │   │ LangGraph    │   │ 9router/   │  │
+│  │ primitives   │   │ LangGraph    │   │ provider   │  │
 │  │ audit chain  │   │ consensus    │   │ OpenAI/... │  │
 │  └──────────────┘   └──────────────┘   └────────────┘  │
 └─────────────────────────────────────────────────────────┘
@@ -94,8 +94,9 @@ uv run ai-provider-gateway swarm \
 - **Multi-tenant quota** — per-tenant daily/window request + token limits
 - **3-mode anti-drift** — off / keyword / embedding (cosine similarity)
 - **HMAC-SHA256 audit chain** — tamper-evident, chained, verifiable offline
+- **Local/S3 audit loading** — JSONL and S3 backends support swarm/date-range loading
 - **Streaming HITL guards** — per-chunk regex denylist + length cap
-- **Multi-provider gateway** — 9router, OpenAI-compatible; per-role overrides
+- **Multi-provider gateway** — provider adapters, routing, and per-role overrides
 - **Cost tracking** — per-call USD estimate, rolled up across workers
 - **S3 audit backend** — partitioned JSONL audit logs, conditional append, restore CLI
 - **Optional monitoring TUI** — Textual dashboard with consensus trend + quota/resource panels

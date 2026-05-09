@@ -5,7 +5,7 @@ Provider gateway and CLI for SwarmGraph.
 Features:
 
 - Provider registry and routing
-- 9router/OpenAI-compatible adapters
+- Provider adapters
 - Quota tracking
 - Multi-tenant quota isolation
 - Audit log verification

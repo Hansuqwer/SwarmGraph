@@ -14,6 +14,8 @@ Use this checklist before promoting SwarmGraph from local evaluation to a shared
   - `uv build --package swarm-shared --out-dir dist`
   - `uv build --package hive-swarm --out-dir dist`
   - `uv build --package ai-provider-swarm-gateway --out-dir dist`
+- Release CI generates, validates, and ships `sbom.cyclonedx.json` and `licenses.txt`.
+- Current release attestation is provenance-only for release artifacts. The CycloneDX SBOM is not separately attested as a typed SBOM predicate unless an explicit SBOM attestation step is added.
 
 ## Configuration
 

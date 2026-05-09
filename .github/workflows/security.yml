@@ -68,4 +68,3 @@ jobs:
           uv run bandit \
             -r packages/swarm-shared/swarm_shared packages/hive-swarm/swarm packages/ai-provider-swarm-gateway/src \
             -f screen
-        continue-on-error: true  # advisory until SAST baseline is triaged
