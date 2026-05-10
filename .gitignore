@@ -72,3 +72,8 @@ scratch/
 docs/patches/
 **/PATCH_NOTE_*.md
 .gitnexus
+
+# Local AI/GitNexus agent context
+.claude/
+AGENTS.md
+CLAUDE.md
