@@ -10,6 +10,30 @@ on:
     branches: [main]
 
 jobs:
+  docker-smoke:
+    name: Docker build and smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build gateway image
+        run: docker build -t swarmgraph-gateway:ci .
+
+      - name: Smoke service endpoints
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name swarmgraph-gateway-ci -p 18000:8000 swarmgraph-gateway:ci
+          trap 'docker stop swarmgraph-gateway-ci >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18000/healthz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18000/healthz
+          curl -fsS http://127.0.0.1:18000/readyz
+
   test:
     name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}

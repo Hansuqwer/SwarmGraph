@@ -49,6 +49,8 @@ nav:
       - Security: operations/security.md
       - Secret Scanning: operations/secret-scanning.md
       - Flutter Local Agent Profile: operations/flutter-local-agent-profile.md
+      - Production Profile: operations/production-profile.md
+      - OrbStack Local Isolation: operations/orbstack-local-isolation.md
       - Vault Backup And Restore: operations/vault-backup-restore.md
       - Flutter Local Agent Handover: operations/flutter-local-agent-handover.md
       - Audit Verification: operations/audit-verification.md
