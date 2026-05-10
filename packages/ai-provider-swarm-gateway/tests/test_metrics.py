@@ -34,19 +34,28 @@ def test_metrics_increment_with_custom_registry():
     recorder.inc_audit_append(backend="jsonl")
     recorder.inc_mcp_reject(tool="run_flutter_analyze")
 
-    assert registry.get_sample_value(
-        "swarmgraph_requests_total",
-        {"method": "GET", "endpoint": "/healthz", "status": "200"},
-    ) == 1.0
-    assert registry.get_sample_value(
-        "swarmgraph_quota_increment_total",
-        {"provider_id": "openai"},
-    ) == 1.0
+    assert (
+        registry.get_sample_value(
+            "swarmgraph_requests_total",
+            {"method": "GET", "endpoint": "/healthz", "status": "200"},
+        )
+        == 1.0
+    )
+    assert (
+        registry.get_sample_value(
+            "swarmgraph_quota_increment_total",
+            {"provider_id": "openai"},
+        )
+        == 1.0
+    )
     assert registry.get_sample_value("swarmgraph_audit_append_total", {"backend": "jsonl"}) == 1.0
-    assert registry.get_sample_value(
-        "swarmgraph_mcp_tool_rejects_total",
-        {"tool": "run_flutter_analyze"},
-    ) == 1.0
+    assert (
+        registry.get_sample_value(
+            "swarmgraph_mcp_tool_rejects_total",
+            {"tool": "run_flutter_analyze"},
+        )
+        == 1.0
+    )
 
 
 def test_metrics_custom_registries_avoid_duplicate_registration():
