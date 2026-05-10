@@ -14,6 +14,9 @@
 | `HIVE_SWARM_AUDIT_FAIL_CLOSED` | Production preflight expects truthy audit fail-closed mode |
 | `HIVE_SWARM_AUDIT_LOG_PATH` | Production preflight expects `{tenant}` and `{swarm_id}` placeholders |
 | `HIVE_SWARM_AUDIT_FSYNC_ENABLED` | Optional regulated-mode JSONL fsync flag |
+| `SWARMGRAPH_LIVE_S3` | Set truthy to run opt-in live S3 audit tests |
+| `SWARMGRAPH_LIVE_S3_BUCKET` | Bucket for opt-in live S3 audit tests |
+| `SWARMGRAPH_LIVE_S3_PREFIX` | Optional prefix for opt-in live S3 audit tests |
 | `AI_PROVIDER_GATEWAY_REVIEWER_ID` | Reviewer id for HITL CLI prompts |
 | `AI_PROVIDER_GATEWAY_MCP_ALLOWED_ROOTS` | Comma-delimited roots allowed for path-based MCP toolbox calls |
 | `AI_PROVIDER_GATEWAY_STATE_DIR` | Optional production confinement base for CLI quota storage paths |
