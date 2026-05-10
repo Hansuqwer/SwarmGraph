@@ -51,6 +51,7 @@ nav:
       - Flutter Local Agent Profile: operations/flutter-local-agent-profile.md
       - Production Profile: operations/production-profile.md
       - OrbStack Local Isolation: operations/orbstack-local-isolation.md
+      - Release Prep Handover 0.8.1: operations/release-prep-handover-0.8.1.md
       - Vault Backup And Restore: operations/vault-backup-restore.md
       - Flutter Local Agent Handover: operations/flutter-local-agent-handover.md
       - Audit Verification: operations/audit-verification.md
