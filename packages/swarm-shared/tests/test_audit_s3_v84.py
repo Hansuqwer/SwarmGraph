@@ -215,9 +215,7 @@ def test_jsonl_backend_load_filters_by_tenant(tmp_path):
     path.write_text(first.to_jsonl_line() + second.to_jsonl_line(), encoding="utf-8")
 
     assert [record.tenant_id for record in backend.load("s1")] == ["tenant-a", "tenant-b"]
-    assert [record.tenant_id for record in backend.load("s1", tenant_id="tenant-a")] == [
-        "tenant-a"
-    ]
+    assert [record.tenant_id for record in backend.load("s1", tenant_id="tenant-a")] == ["tenant-a"]
 
 
 def test_audit_backend_date_range_rejects_invalid_dates(tmp_path):

@@ -100,8 +100,7 @@ class JSONLBackend:
         records = [
             record
             for record in load_jsonl_chain(self.path)
-            if record.swarm_id == swarm_id
-            and (tenant_id is None or record.tenant_id == tenant_id)
+            if record.swarm_id == swarm_id and (tenant_id is None or record.tenant_id == tenant_id)
         ]
         return _filter_records_by_date(records, start_date=start_date, end_date=end_date)
 

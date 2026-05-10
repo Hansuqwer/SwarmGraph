@@ -534,7 +534,9 @@ def pool_sync(
     vault_path: Path | None = typer.Option(None, "--vault-path"),
     push: bool = typer.Option(False, "--push"),
     pull: bool = typer.Option(False, "--pull"),
-    confirm: bool = typer.Option(False, "--yes", "-y", help="Overwrite existing local vault on pull."),
+    confirm: bool = typer.Option(
+        False, "--yes", "-y", help="Overwrite existing local vault on pull."
+    ),
     key_path: Path | None = typer.Option(None, "--key-path"),
 ) -> None:
     """Push/pull the encrypted vault blob to S3. Secrets are not logged."""

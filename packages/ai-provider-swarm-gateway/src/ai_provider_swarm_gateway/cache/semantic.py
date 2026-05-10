@@ -130,7 +130,9 @@ class SemanticCache:
 
     def _tenant_id(self, tenant_id: str) -> str:
         if _shared_mode_enabled() and not tenant_id:
-            raise ValueError("tenant_id is required when AI_PROVIDER_GATEWAY_CACHE_SHARED_MODE is enabled")
+            raise ValueError(
+                "tenant_id is required when AI_PROVIDER_GATEWAY_CACHE_SHARED_MODE is enabled"
+            )
         return tenant_id
 
     def get(

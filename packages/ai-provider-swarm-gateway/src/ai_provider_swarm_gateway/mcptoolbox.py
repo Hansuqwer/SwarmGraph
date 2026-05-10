@@ -58,7 +58,9 @@ def flutter_project_summary(root: str = ".") -> dict[str, Any]:
         project_root = enforce_allowed_path(root)
     except WorkspaceNotAllowed as exc:
         increment_counter("mcp_tool_rejects_total")
-        log_event("mcp.tool.reject", level="warning", tool="flutter_project_summary", reason=str(exc))
+        log_event(
+            "mcp.tool.reject", level="warning", tool="flutter_project_summary", reason=str(exc)
+        )
         return {"ok": False, "error": "workspace_not_allowed", "detail": str(exc)}
     pubspec = project_root / "pubspec.yaml"
     lib_dir = project_root / "lib"
