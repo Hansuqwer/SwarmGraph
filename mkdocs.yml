@@ -30,6 +30,7 @@ not_in_nav: |
 nav:
   - Home: index.md
   - Getting Started:
+      - Local Install: INSTALL.md
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
       - Smoke Tests: getting-started/smoke-tests.md
